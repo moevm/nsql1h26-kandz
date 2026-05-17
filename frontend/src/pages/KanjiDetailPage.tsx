@@ -1,9 +1,18 @@
-import { useState } from 'react';
-import { ArrowLeft, Play, X } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
+import { ArrowLeft, Pencil, Play, Save, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import LoadingState from '../components/LoadingState';
-import { useKanjiDetailQuery } from '../hooks/useKanjiQueries';
+import { useKanjiDetailQuery, useUpdateKanjiMutation } from '../hooks/useKanjiQueries';
 import type { KanjiDocument } from '../types/kanji';
+
+const splitValues = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const emptyStrokePaths: string[] = [];
 
 const StrokeOrderDialog = ({
   kanji,
@@ -15,19 +24,37 @@ const StrokeOrderDialog = ({
   onClose: () => void;
 }) => {
   const [replayKey, setReplayKey] = useState(0);
+  const pathRefs = useRef<(SVGPathElement | null)[]>([]);
+  const [timings, setTimings] = useState<{ length: number; duration: number; delay: number }[]>([]);
+  const paths = kanji.kvg?.stroke_paths ?? emptyStrokePaths;
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let delay = 0;
+    const nextTimings = paths.map((_, index) => {
+      const length = Math.max(1, pathRefs.current[index]?.getTotalLength() ?? 100);
+      const duration = Math.max(0.3, Math.min(1.05, length / 125));
+      const timing = { length, duration, delay };
+      delay += duration + 0.12;
+      return timing;
+    });
+
+    setTimings(nextTimings);
+  }, [open, paths, replayKey]);
 
   if (!open) {
     return null;
   }
-
-  const paths = kanji.kvg?.stroke_paths ?? [];
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Порядок черт">
       <div className="modal-sheet">
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Stroke order</p>
+            <p className="eyebrow">Порядок черт</p>
             <h2>{kanji.literal}</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть порядок черт">
@@ -44,8 +71,16 @@ const StrokeOrderDialog = ({
                 <path
                   d={path}
                   key={`${path}-${index}`}
-                  pathLength="100"
-                  style={{ animationDelay: `${index * 0.34}s` }}
+                  ref={(element) => {
+                    pathRefs.current[index] = element;
+                  }}
+                  style={
+                    {
+                      '--stroke-length': timings[index]?.length ?? 100,
+                      '--stroke-duration': `${timings[index]?.duration ?? 0.6}s`,
+                      '--stroke-delay': `${timings[index]?.delay ?? 0}s`,
+                    } as CSSProperties
+                  }
                 />
               ))}
             </svg>
@@ -57,11 +92,119 @@ const StrokeOrderDialog = ({
   );
 };
 
+const KanjiEditDialog = ({
+  kanji,
+  onClose,
+}: {
+  kanji: KanjiDocument;
+  onClose: () => void;
+}) => {
+  const updateMutation = useUpdateKanjiMutation();
+  const [draft, setDraft] = useState({
+    meanings: kanji.meanings.join(', '),
+    on: kanji.readings.on.join(', '),
+    kun: kanji.readings.kun.join(', '),
+    nanori: kanji.readings.nanori.join(', '),
+    radicals: kanji.radicals.join(', '),
+    strokeCount: String(kanji.stroke_count ?? ''),
+    grade: String(kanji.grade ?? ''),
+    jlpt: String(kanji.jlpt ?? ''),
+  });
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+
+    const updated: KanjiDocument = {
+      ...kanji,
+      stroke_count: draft.strokeCount ? Number(draft.strokeCount) : null,
+      grade: draft.grade ? Number(draft.grade) : null,
+      jlpt: draft.jlpt ? Number(draft.jlpt) : null,
+      readings: {
+        on: splitValues(draft.on),
+        kun: splitValues(draft.kun),
+        nanori: splitValues(draft.nanori),
+      },
+      meanings: splitValues(draft.meanings),
+      radicals: splitValues(draft.radicals),
+    };
+
+    await updateMutation.mutateAsync({ literal: kanji.literal, kanji: updated });
+    onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Редактирование кандзи">
+      <div className="modal-sheet">
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Редактирование</p>
+            <h2>{kanji.literal}</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть редактирование">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label>
+            Значения
+            <input value={draft.meanings} onChange={(event) => setDraft({ ...draft, meanings: event.target.value })} />
+          </label>
+          <div className="field-row">
+            <label>
+              Черт
+              <input inputMode="numeric" value={draft.strokeCount} onChange={(event) => setDraft({ ...draft, strokeCount: event.target.value })} />
+            </label>
+            <label>
+              Класс
+              <input inputMode="numeric" value={draft.grade} onChange={(event) => setDraft({ ...draft, grade: event.target.value })} />
+            </label>
+          </div>
+          <div className="field-row">
+            <label>
+              JLPT
+              <input inputMode="numeric" value={draft.jlpt} onChange={(event) => setDraft({ ...draft, jlpt: event.target.value })} />
+            </label>
+            <label>
+              Радикалы
+              <input value={draft.radicals} onChange={(event) => setDraft({ ...draft, radicals: event.target.value })} />
+            </label>
+          </div>
+          <label>
+            On-чтения
+            <input value={draft.on} onChange={(event) => setDraft({ ...draft, on: event.target.value })} />
+          </label>
+          <label>
+            Kun-чтения
+            <input value={draft.kun} onChange={(event) => setDraft({ ...draft, kun: event.target.value })} />
+          </label>
+          <label>
+            Nanori
+            <input value={draft.nanori} onChange={(event) => setDraft({ ...draft, nanori: event.target.value })} />
+          </label>
+
+          {updateMutation.error ? <p className="error-text">{updateMutation.error.message}</p> : null}
+          <button className="filled-button" type="submit" disabled={updateMutation.isPending}>
+            <Save size={18} />
+            Сохранить
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const KanjiDetailPage = () => {
   const { literal } = useParams();
+  const navigate = useNavigate();
   const decodedLiteral = literal ? decodeURIComponent(literal) : '';
   const query = useKanjiDetailQuery(decodedLiteral);
   const [strokeOpen, setStrokeOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [decodedLiteral]);
 
   if (query.isLoading) {
     return <LoadingState label="Открываем карточку" />;
@@ -70,38 +213,53 @@ const KanjiDetailPage = () => {
   if (query.isError || !query.data) {
     return (
       <div className="page-stack">
-        <Link to="/search/canvas" className="text-button">
+        <button className="text-button back-link" type="button" onClick={() => navigate(-1)}>
           <ArrowLeft size={18} />
-          Вернуться к поиску
-        </Link>
+          Назад
+        </button>
         <div className="empty-state">Иероглиф не найден в базе данных.</div>
       </div>
     );
   }
 
   const kanji = query.data;
+  const hasStrokePaths = Boolean(kanji.kvg?.stroke_paths?.length);
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/search/canvas');
+  };
 
   return (
     <div className="detail-page">
-      <Link to="/search/canvas" className="text-button back-link">
+      <button className="text-button back-link" type="button" onClick={handleBack}>
         <ArrowLeft size={18} />
-        К поиску
-      </Link>
+        Назад
+      </button>
 
       <section className="detail-hero">
         <div className="detail-symbol">{kanji.literal}</div>
         <div className="detail-summary">
-          <p className="eyebrow">Kanji card</p>
+          <p className="eyebrow">Карточка кандзи</p>
           <h1>{kanji.meanings.join(', ')}</h1>
           <div className="meta-line">
             <span>{kanji.stroke_count ?? '—'} черт</span>
             <span>{kanji.grade ? `${kanji.grade} класс` : 'вне школьной программы'}</span>
             <span>{kanji.jlpt ? `JLPT N${kanji.jlpt}` : 'без JLPT'}</span>
           </div>
-          <button className="filled-button" type="button" onClick={() => setStrokeOpen(true)}>
-            <Play size={18} />
-            Порядок черт
-          </button>
+          <div className="detail-actions">
+            <button className="tonal-button" type="button" onClick={() => setEditOpen(true)}>
+              <Pencil size={18} />
+              Редактировать
+            </button>
+            <button className="filled-button" type="button" onClick={() => setStrokeOpen(true)} disabled={!hasStrokePaths}>
+              <Play size={18} />
+              Порядок черт
+            </button>
+          </div>
         </div>
       </section>
 
@@ -158,6 +316,7 @@ const KanjiDetailPage = () => {
       </section>
 
       <StrokeOrderDialog kanji={kanji} open={strokeOpen} onClose={() => setStrokeOpen(false)} />
+      {editOpen ? <KanjiEditDialog kanji={kanji} onClose={() => setEditOpen(false)} /> : null}
     </div>
   );
 };
