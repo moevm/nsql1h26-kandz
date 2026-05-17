@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
-import { RotateCcw, Sparkles, Trash2 } from 'lucide-react';
-import { useKanjiSearchQuery, useRecognitionQuery } from '../hooks/useKanjiQueries';
+import { CornerUpLeft, Eraser, Sparkles } from 'lucide-react';
+import { useFilteredRecognitionQuery } from '../hooks/useKanjiQueries';
 import type { GlobalFilters, Point } from '../types/kanji';
 import KanjiList from './KanjiList';
 import LoadingState from './LoadingState';
@@ -10,25 +10,29 @@ interface CanvasSearchProps {
   filters: GlobalFilters;
 }
 
+const STORAGE_KEY = 'kanji-lookup-canvas-strokes';
+
+const readSavedStrokes = (): Point[][] => {
+  try {
+    const saved = window.sessionStorage.getItem(STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [strokes, setStrokes] = useState<Point[][]>([]);
+  const [strokes, setStrokes] = useState<Point[][]>(() => readSavedStrokes());
   const [isDrawing, setIsDrawing] = useState(false);
-  const recognitionQuery = useRecognitionQuery(strokes);
-  const filteredKanjiQuery = useKanjiSearchQuery({ filters });
-
-  const filteredIds = useMemo(
-    () => new Set(filteredKanjiQuery.data?.map((kanji) => kanji.literal) ?? []),
-    [filteredKanjiQuery.data],
-  );
+  const recognitionQuery = useFilteredRecognitionQuery(strokes, filters);
 
   const candidates = useMemo(
-    () =>
-      strokes.length === 0
-        ? []
-        : (recognitionQuery.data ?? []).filter((candidate) => filteredIds.has(candidate.kanji.literal)),
-    [filteredIds, recognitionQuery.data, strokes.length],
+    () => (strokes.length === 0 ? [] : (recognitionQuery.data ?? [])),
+    [recognitionQuery.data, strokes.length],
   );
+  const isInitialLoading = recognitionQuery.isFetching && strokes.length > 0 && !recognitionQuery.data;
 
   const getPoint = useCallback((event: PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
@@ -92,6 +96,10 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   }, [redraw]);
 
   useEffect(() => {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(strokes));
+  }, [strokes]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
 
     if (!canvas) {
@@ -143,17 +151,13 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   return (
     <div className="canvas-layout">
       <section className="draw-panel" aria-label="Холст для рукописного ввода">
-        <div className="draw-toolbar">
-          <div>
-            <p className="eyebrow">Handwriting search</p>
-            <h2>Нарисуйте кандзи</h2>
-          </div>
+        <div className="draw-toolbar compact-toolbar">
           <div className="toolbar-actions">
             <button className="icon-button" type="button" onClick={() => setStrokes((current) => current.slice(0, -1))} disabled={strokes.length === 0} aria-label="Отменить последнюю черту">
-              <RotateCcw size={19} />
+              <CornerUpLeft size={19} />
             </button>
             <button className="icon-button danger" type="button" onClick={() => setStrokes([])} disabled={strokes.length === 0} aria-label="Очистить холст">
-              <Trash2 size={19} />
+              <Eraser size={19} />
             </button>
           </div>
         </div>
@@ -178,8 +182,9 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
       </section>
 
       <div>
-        {recognitionQuery.isFetching && strokes.length > 0 ? <LoadingState label="Распознаём рисунок" /> : null}
-        {!recognitionQuery.isFetching ? (
+        {isInitialLoading ? <LoadingState label="Распознаём рисунок" /> : null}
+        {recognitionQuery.isError ? <div className="empty-state">{recognitionQuery.error.message}</div> : null}
+        {!isInitialLoading && !recognitionQuery.isError ? (
           <KanjiList
             items={candidates}
             title="Похожие кандзи"
