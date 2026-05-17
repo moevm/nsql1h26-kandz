@@ -2,34 +2,55 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addKanji,
   exportDatabase,
-  getDatabase,
+  getChartData,
   getKanjiByLiteral,
+  getKanjiPage,
   getRadicals,
   importDatabaseFromFile,
   loginAdmin,
   recognizeDrawing,
   searchKanji,
+  searchKanjiPage,
+  updateKanji,
 } from '../api/kanjiRepository';
-import type { GlobalFilters, Point, SearchCriteria } from '../types/kanji';
+import type { ChartXAxis, ChartYAxis, GlobalFilters, KanjiTableFilters, Point, SearchCriteria } from '../types/kanji';
 import type { KanjiDocument } from '../types/kanji';
 
 export const defaultFilters: GlobalFilters = {
   strokeFrom: '',
   strokeTo: '',
   jlptLevels: [],
+  gradeLevels: [],
+  freqFrom: '',
+  freqTo: '',
+  wordsFrom: '',
+  wordsTo: '',
+  examplesFrom: '',
+  examplesTo: '',
+  radicalsFrom: '',
+  radicalsTo: '',
+  readingsFrom: '',
+  readingsTo: '',
   hasAnimation: false,
 };
-
-export const useDatabaseQuery = () =>
-  useQuery({
-    queryKey: ['database'],
-    queryFn: getDatabase,
-  });
 
 export const useKanjiSearchQuery = (criteria: SearchCriteria) =>
   useQuery({
     queryKey: ['kanji-search', criteria],
     queryFn: () => searchKanji(criteria),
+  });
+
+export const useKanjiSearchPageQuery = (criteria: SearchCriteria, page: number, pageSize: number, enabled = true) =>
+  useQuery({
+    queryKey: ['kanji-search-page', criteria, page, pageSize],
+    queryFn: () => searchKanjiPage(criteria, page, pageSize),
+    enabled,
+  });
+
+export const useKanjiPageQuery = (filters: KanjiTableFilters, page: number, pageSize: number) =>
+  useQuery({
+    queryKey: ['kanji-page', filters, page, pageSize],
+    queryFn: () => getKanjiPage(filters, page, pageSize),
   });
 
 export const useKanjiDetailQuery = (literal: string | undefined) =>
@@ -52,6 +73,19 @@ export const useRecognitionQuery = (strokes: Point[][]) =>
     enabled: strokes.length > 0,
   });
 
+export const useFilteredRecognitionQuery = (strokes: Point[][], filters: GlobalFilters) =>
+  useQuery({
+    queryKey: ['recognition', strokes, filters],
+    queryFn: () => recognizeDrawing(strokes, filters),
+    enabled: strokes.length > 0,
+  });
+
+export const useChartQuery = (criteria: SearchCriteria, xAxis: ChartXAxis, yAxis: ChartYAxis) =>
+  useQuery({
+    queryKey: ['kanji-chart', criteria, xAxis, yAxis],
+    queryFn: () => getChartData(criteria, xAxis, yAxis),
+  });
+
 export const useExportMutation = () =>
   useMutation({
     mutationFn: exportDatabase,
@@ -61,7 +95,8 @@ export const useImportMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: importDatabaseFromFile,
+    mutationFn: ({ file, token }: { file: File; token: string }) =>
+      importDatabaseFromFile(file, token),
     onSuccess: () => {
       void queryClient.invalidateQueries();
     },
@@ -78,9 +113,24 @@ export const useAddKanjiMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (kanji: KanjiDocument) => addKanji(kanji),
+    mutationFn: ({ kanji, token }: { kanji: KanjiDocument; token: string }) => addKanji(kanji, token),
     onSuccess: () => {
       void queryClient.invalidateQueries();
+    },
+  });
+};
+
+export const useUpdateKanjiMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ literal, kanji }: { literal: string; kanji: KanjiDocument }) =>
+      updateKanji(literal, kanji),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['kanji-detail', variables.literal] });
+      void queryClient.invalidateQueries({ queryKey: ['kanji-search'] });
+      void queryClient.invalidateQueries({ queryKey: ['kanji-page'] });
+      void queryClient.invalidateQueries({ queryKey: ['radicals'] });
     },
   });
 };

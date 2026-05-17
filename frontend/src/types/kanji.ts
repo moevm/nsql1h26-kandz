@@ -60,6 +60,14 @@ export interface KanjiDatabase {
   users: AdminUser[];
 }
 
+export interface KanjiPage {
+  items: KanjiDocument[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export interface Point {
   x: number;
   y: number;
@@ -70,12 +78,23 @@ export interface RecognitionCandidate {
   score: number;
 }
 
-export type SearchMode = 'canvas' | 'radicals' | 'strokes' | 'school';
+export type SearchMode = 'canvas' | 'radicals';
 
 export interface GlobalFilters {
   strokeFrom: string;
   strokeTo: string;
   jlptLevels: string[];
+  gradeLevels: string[];
+  freqFrom: string;
+  freqTo: string;
+  wordsFrom: string;
+  wordsTo: string;
+  examplesFrom: string;
+  examplesTo: string;
+  radicalsFrom: string;
+  radicalsTo: string;
+  readingsFrom: string;
+  readingsTo: string;
   hasAnimation: boolean;
 }
 
@@ -86,4 +105,22 @@ export interface SearchCriteria {
   grade?: number | null;
   jlpt?: number | null;
   filters?: GlobalFilters;
+}
+
+export interface KanjiTableFilters {
+  literal: string;
+  meaning: string;
+  radical: string;
+  strokeCount: string;
+  grade: string;
+  jlpt: string;
+}
+
+export type ChartXAxis = 'jlpt' | 'stroke_count' | 'grade' | 'radical_top';
+export type ChartYAxis = 'count' | 'avg_freq' | 'avg_words' | 'avg_examples' | 'avg_radicals' | 'avg_readings' | 'avg_strokes';
+
+export interface ChartBucket {
+  label: number | string | null;
+  value: number;
+  count: number;
 }
