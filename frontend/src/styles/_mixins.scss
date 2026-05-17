@@ -1,0 +1,17 @@
+@use "variables" as *;
+
+@mixin focus-ring {
+  outline: 2px solid $focus;
+  outline-offset: 2px;
+}
+
+@mixin panel {
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $surface;
+  box-shadow: $shadow;
+}
+
+@mixin japanese-font {
+  font-family: "Yu Mincho", "Noto Serif JP", "Hiragino Mincho ProN", serif;
+}
