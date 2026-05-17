@@ -10,11 +10,11 @@ const LoadingState = ({ label = 'Загрузка данных' }: LoadingStateP
       visible
       height="54"
       width="54"
-      color="#006a60"
+      color="#0b57d0"
       ariaLabel="line-wave-loading"
-      firstLineColor="#006a60"
-      middleLineColor="#2f5f9e"
-      lastLineColor="#c14600"
+      firstLineColor="#0b57d0"
+      middleLineColor="#0b57d0"
+      lastLineColor="#c5221f"
     />
     <span>{label}</span>
   </div>
