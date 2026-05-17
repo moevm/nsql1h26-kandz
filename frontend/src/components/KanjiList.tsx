@@ -11,6 +11,11 @@ interface KanjiListProps {
   items: KanjiListItem[];
   title?: string;
   emptyText?: string;
+  total?: number;
+  page?: number;
+  totalPages?: number;
+  isFetching?: boolean;
+  onPageChange?: (page: number) => void;
 }
 
 const formatMeta = (kanji: KanjiDocument) => {
@@ -21,11 +26,20 @@ const formatMeta = (kanji: KanjiDocument) => {
   return `${strokes} · ${grade} · ${jlpt}`;
 };
 
-const KanjiList = ({ items, title = 'Результаты', emptyText = 'Ничего не найдено' }: KanjiListProps) => (
+const KanjiList = ({
+  items,
+  title = 'Результаты',
+  emptyText = 'Ничего не найдено',
+  total,
+  page,
+  totalPages,
+  isFetching = false,
+  onPageChange,
+}: KanjiListProps) => (
   <section className="results-panel" aria-label={title}>
     <div className="section-heading">
       <h2>{title}</h2>
-      <span>{items.length}</span>
+      <span>{total ?? items.length}</span>
     </div>
 
     {items.length === 0 ? (
@@ -46,6 +60,20 @@ const KanjiList = ({ items, title = 'Результаты', emptyText = 'Нич�
         ))}
       </div>
     )}
+
+    {onPageChange && page && totalPages && totalPages > 1 ? (
+      <div className="pagination-row">
+        <button className="text-button compact" type="button" disabled={page === 1 || isFetching} onClick={() => onPageChange(page - 1)}>
+          Назад
+        </button>
+        <span>
+          {page} / {totalPages}
+        </span>
+        <button className="text-button compact" type="button" disabled={page === totalPages || isFetching} onClick={() => onPageChange(page + 1)}>
+          Вперёд
+        </button>
+      </div>
+    ) : null}
   </section>
 );
 
