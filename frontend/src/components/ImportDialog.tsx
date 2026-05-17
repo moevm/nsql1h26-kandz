@@ -13,9 +13,10 @@ const ImportDialog = ({ open, onClose, onImported }: ImportDialogProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [adminToken, setAdminToken] = useState('');
   const loginMutation = useAdminLoginMutation();
   const importMutation = useImportMutation();
+  const isAuthorized = Boolean(adminToken);
 
   if (!open) {
     return null;
@@ -23,8 +24,8 @@ const ImportDialog = ({ open, onClose, onImported }: ImportDialogProps) => {
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
-    await loginMutation.mutateAsync({ username, password });
-    setIsAuthorized(true);
+    const session = await loginMutation.mutateAsync({ username, password });
+    setAdminToken(session.access_token);
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   };
 
@@ -35,14 +36,18 @@ const ImportDialog = ({ open, onClose, onImported }: ImportDialogProps) => {
       return;
     }
 
-    const confirmed = window.confirm('Текущее содержимое учебной БД будет полностью заменено данными из файла.');
+    const confirmed = window.confirm('Текущее содержимое базы будет полностью заменено данными из файла.');
 
     if (!confirmed) {
       event.target.value = '';
       return;
     }
 
-    await importMutation.mutateAsync(file);
+    if (!adminToken) {
+      return;
+    }
+
+    await importMutation.mutateAsync({ file, token: adminToken });
     onImported('Импорт завершён: данные заменены JSON-файлом.');
     event.target.value = '';
     onClose();
@@ -53,7 +58,7 @@ const ImportDialog = ({ open, onClose, onImported }: ImportDialogProps) => {
       <div className="modal-sheet">
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Mass import</p>
+            <p className="eyebrow">Импорт данных</p>
             <h2>Импорт JSON</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть импорт">
