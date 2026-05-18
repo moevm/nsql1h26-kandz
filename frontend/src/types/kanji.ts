@@ -43,6 +43,19 @@ export interface RadicalDocument {
   kanji_list: string[];
   stroke_count: number;
   meaning: string | null;
+  usage_count?: number;
+}
+
+export type RadicalGrouping = 'strokes' | 'usage';
+export type SortOrder = 'asc' | 'desc';
+
+export interface RadicalGroup {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  count: number;
+  radicals: RadicalDocument[];
 }
 
 export interface AdminUser {

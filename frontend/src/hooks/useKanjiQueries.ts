@@ -5,6 +5,7 @@ import {
   getChartData,
   getKanjiByLiteral,
   getKanjiPage,
+  getRadicalGroups,
   getRadicals,
   importDatabaseFromFile,
   loginAdmin,
@@ -13,7 +14,7 @@ import {
   searchKanjiPage,
   updateKanji,
 } from '../api/kanjiRepository';
-import type { ChartXAxis, ChartYAxis, GlobalFilters, KanjiTableFilters, Point, SearchCriteria } from '../types/kanji';
+import type { ChartXAxis, ChartYAxis, GlobalFilters, KanjiTableFilters, Point, RadicalGrouping, SearchCriteria, SortOrder } from '../types/kanji';
 import type { KanjiDocument } from '../types/kanji';
 
 export const defaultFilters: GlobalFilters = {
@@ -64,6 +65,13 @@ export const useRadicalsQuery = () =>
   useQuery({
     queryKey: ['radicals'],
     queryFn: getRadicals,
+  });
+
+export const useRadicalGroupsQuery = (groupBy: RadicalGrouping, order: SortOrder, enabled = true) =>
+  useQuery({
+    queryKey: ['radical-groups', groupBy, order],
+    queryFn: () => getRadicalGroups(groupBy, order),
+    enabled,
   });
 
 export const useRecognitionQuery = (strokes: Point[][]) =>

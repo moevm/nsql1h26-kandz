@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FocusEvent } from 'react';
 import { Navigate, useOutletContext, useParams } from 'react-router-dom';
-import { Search, X } from 'lucide-react';
+import { ArrowUpDown, Search, X } from 'lucide-react';
 import CanvasSearch from '../components/CanvasSearch';
 import KanjiList from '../components/KanjiList';
 import LoadingState from '../components/LoadingState';
 import type { AppOutletContext } from '../components/AppShell';
-import { useKanjiSearchPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
-import type { SearchMode } from '../types/kanji';
+import { useKanjiSearchPageQuery, useRadicalGroupsQuery } from '../hooks/useKanjiQueries';
+import type { RadicalGrouping, SearchMode, SortOrder } from '../types/kanji';
 
 const modeLabels: Record<SearchMode, string> = {
   canvas: 'По рисунку',
@@ -20,22 +21,108 @@ const modeDescriptions: Record<SearchMode, string> = {
 
 const modes = Object.keys(modeLabels) as SearchMode[];
 const searchPageSize = 20;
+const radicalFillDelayMs = 420;
+const radicalReleaseDelayMs = 420;
+
+const radicalGroupingOptions: Array<{ value: RadicalGrouping; label: string }> = [
+  { value: 'usage', label: 'количеству' },
+  { value: 'strokes', label: 'числу черт' },
+];
 
 const asMode = (value: string | undefined): SearchMode | null =>
   modes.includes(value as SearchMode) ? (value as SearchMode) : null;
+
+const sameRadicals = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
+
+const radicalGroupingLabel = (value: RadicalGrouping) =>
+  radicalGroupingOptions.find((option) => option.value === value)?.label ?? value;
+
+const RadicalGroupingSelector = ({
+  value,
+  onChange,
+}: {
+  value: RadicalGrouping;
+  onChange: (value: RadicalGrouping) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!menuRef.current?.contains(event.relatedTarget as Node | null)) {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="axis-selector radical-group-selector" ref={menuRef} onBlurCapture={handleBlur}>
+      <span>по</span>
+      <button className="axis-link" type="button" onClick={() => setOpen((current) => !current)}>
+        {radicalGroupingLabel(value)}
+      </button>
+      {open ? (
+        <div className="axis-menu">
+          {radicalGroupingOptions.map((option) => (
+            <button
+              className={option.value === value ? 'selected' : ''}
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 const SearchPage = () => {
   const params = useParams();
   const { filters } = useOutletContext<AppOutletContext>();
   const mode = asMode(params.mode);
   const [text, setText] = useState('');
-  const [selectedRadicals, setSelectedRadicals] = useState<string[]>([]);
+  const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
+  const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
+  const [radicalGrouping, setRadicalGrouping] = useState<RadicalGrouping>('usage');
+  const [radicalSortOrder, setRadicalSortOrder] = useState<SortOrder>('desc');
   const [pageState, setPageState] = useState({ key: '', page: 1 });
-  const radicalsQuery = useRadicalsQuery();
+  const radicalGroupsQuery = useRadicalGroupsQuery(radicalGrouping, radicalSortOrder, mode === 'radicals');
+  const radicalGroups = radicalGroupsQuery.data ?? [];
+  const pendingAddedRadicals = useMemo(
+    () => draftRadicals.filter((radical) => !appliedRadicals.includes(radical)),
+    [appliedRadicals, draftRadicals],
+  );
+  const pendingRemovedRadicals = useMemo(
+    () => appliedRadicals.filter((radical) => !draftRadicals.includes(radical)),
+    [appliedRadicals, draftRadicals],
+  );
+  const pendingDelayMs = pendingAddedRadicals.length > 0 ? radicalFillDelayMs : radicalReleaseDelayMs;
+
+  useEffect(() => {
+    if (sameRadicals(draftRadicals, appliedRadicals)) {
+      return undefined;
+    }
+
+    if (pendingAddedRadicals.length === 0 && pendingRemovedRadicals.length === 0) {
+      setAppliedRadicals(draftRadicals);
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setAppliedRadicals(draftRadicals);
+    }, pendingDelayMs);
+
+    return () => window.clearTimeout(timeout);
+  }, [appliedRadicals, draftRadicals, pendingAddedRadicals.length, pendingDelayMs, pendingRemovedRadicals.length]);
 
   const searchCriteria = useMemo(
-    () => ({ text, radicals: selectedRadicals, filters }),
-    [filters, selectedRadicals, text],
+    () => ({ text, radicals: appliedRadicals, filters }),
+    [appliedRadicals, filters, text],
   );
   const criteriaKey = JSON.stringify(searchCriteria);
   const page = pageState.key === criteriaKey ? pageState.page : 1;
@@ -50,14 +137,28 @@ const SearchPage = () => {
   };
 
   const toggleRadical = (radical: string) => {
-    setSelectedRadicals((current) =>
+    setDraftRadicals((current) =>
       current.includes(radical) ? current.filter((item) => item !== radical) : [...current, radical],
     );
   };
 
+  const radicalClassName = (radical: string) => {
+    const isDraftSelected = draftRadicals.includes(radical);
+    const isApplied = appliedRadicals.includes(radical);
+
+    return [
+      'radical-tile',
+      isDraftSelected && isApplied ? 'selected' : '',
+      isDraftSelected && !isApplied ? 'pending-selected' : '',
+      !isDraftSelected && isApplied ? 'pending-removed' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  };
+
   const pageData = resultsQuery.data;
-  const isInitialLoading = !pageData && (resultsQuery.isLoading || radicalsQuery.isLoading);
-  const isError = resultsQuery.isError || radicalsQuery.isError;
+  const isInitialLoading = !pageData && (resultsQuery.isLoading || radicalGroupsQuery.isLoading);
+  const isError = resultsQuery.isError || radicalGroupsQuery.isError;
 
   return (
     <div className="page-stack">
@@ -80,28 +181,53 @@ const SearchPage = () => {
             </label>
 
             <div className="section-heading radical-heading">
-              <h2>Радикалы</h2>
-              {selectedRadicals.length > 0 ? (
-                <button className="icon-button compact-icon" type="button" onClick={() => setSelectedRadicals([])} aria-label="Сбросить радикалы">
-                  <X size={16} />
+              <div className="radical-title">
+                <h2>Радикалы</h2>
+                <RadicalGroupingSelector value={radicalGrouping} onChange={setRadicalGrouping} />
+              </div>
+              <div className="radical-actions">
+                {draftRadicals.length > 0 ? (
+                  <button className="icon-button compact-icon" type="button" onClick={() => setDraftRadicals([])} aria-label="Сбросить радикалы">
+                    <X size={16} />
+                  </button>
+                ) : (
+                  <div className="heading-action-placeholder" aria-hidden="true" />
+                )}
+                <button
+                  className={`icon-button compact-icon sort-icon ${radicalSortOrder}`}
+                  type="button"
+                  onClick={() => setRadicalSortOrder((current) => (current === 'desc' ? 'asc' : 'desc'))}
+                  aria-label={radicalSortOrder === 'desc' ? 'Сортировка от большего к меньшему' : 'Сортировка от меньшего к большему'}
+                  title={radicalSortOrder === 'desc' ? 'От большего к меньшему' : 'От меньшего к большему'}
+                >
+                  <ArrowUpDown size={16} />
                 </button>
-              ) : (
-                <div className="heading-action-placeholder" aria-hidden="true" />
-              )}
+              </div>
             </div>
 
-            <div className="radical-grid">
-              {radicalsQuery.data?.map((radical) => (
-                <button
-                  className={selectedRadicals.includes(radical._id) ? 'radical-tile selected' : 'radical-tile'}
-                  key={radical._id}
-                  type="button"
-                  onClick={() => toggleRadical(radical._id)}
-                >
-                  <strong>{radical._id}</strong>
-                  <span>{radical.kanji_list.length}</span>
-                  <small>{radical.meaning}</small>
-                </button>
+            <div className="radical-groups">
+              {radicalGroups.map((group) => (
+                <section className="radical-group" key={group.id}>
+                  <div className="radical-group-label">
+                    <span>{group.label}</span>
+                    <small>{group.count}</small>
+                  </div>
+                  <div className="radical-grid">
+                    {group.radicals.map((radical) => (
+                      <button
+                        className={radicalClassName(radical._id)}
+                        key={radical._id}
+                        type="button"
+                        aria-pressed={draftRadicals.includes(radical._id)}
+                        onClick={() => toggleRadical(radical._id)}
+                      >
+                        <strong>{radical._id}</strong>
+                        <span>{radical.kanji_list.length}</span>
+                        <small>{radical.meaning}</small>
+                      </button>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </section>
@@ -110,7 +236,7 @@ const SearchPage = () => {
             <LoadingState label="Загружаем каталог" />
           ) : isError ? (
             <div className="empty-state">
-              {resultsQuery.error?.message ?? radicalsQuery.error?.message ?? 'Не удалось загрузить каталог.'}
+              {resultsQuery.error?.message ?? radicalGroupsQuery.error?.message ?? 'Не удалось загрузить каталог.'}
             </div>
           ) : (
             <KanjiList
