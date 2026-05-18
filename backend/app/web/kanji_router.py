@@ -171,8 +171,14 @@ async def create_kanji(
 
 
 @router.put("/kanji/{literal}")
-async def update_kanji(literal: str, request: Request) -> dict[str, Any]:
-    return kanji_service.update_kanji(get_db(request), literal, await request.json())
+async def update_kanji(
+    literal: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    db = get_db(request)
+    require_admin_token(db, request.app.state.settings, authorization)
+    return kanji_service.update_kanji(db, literal, await request.json())
 
 
 @router.post("/recognize")
