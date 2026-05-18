@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useOutletContext, useParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import CanvasSearch from '../components/CanvasSearch';
@@ -20,6 +20,8 @@ const modeDescriptions: Record<SearchMode, string> = {
 
 const modes = Object.keys(modeLabels) as SearchMode[];
 const searchPageSize = 20;
+const radicalFillDelayMs = 700; // 850
+const radicalReleaseDelayMs = 420;
 
 const asMode = (value: string | undefined): SearchMode | null =>
   modes.includes(value as SearchMode) ? (value as SearchMode) : null;
@@ -35,42 +37,33 @@ const SearchPage = () => {
   const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
   const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
   const [pageState, setPageState] = useState({ key: '', page: 1 });
-  const completedRadicalsRef = useRef(new Set<string>());
   const radicalsQuery = useRadicalsQuery();
-  const pendingRadicals = useMemo(
-    () => [
-      ...draftRadicals.filter((radical) => !appliedRadicals.includes(radical)),
-      ...appliedRadicals.filter((radical) => !draftRadicals.includes(radical)),
-    ],
+  const pendingAddedRadicals = useMemo(
+    () => draftRadicals.filter((radical) => !appliedRadicals.includes(radical)),
     [appliedRadicals, draftRadicals],
   );
-  const pendingRadicalsKey = pendingRadicals.join('\u001f');
+  const pendingRemovedRadicals = useMemo(
+    () => appliedRadicals.filter((radical) => !draftRadicals.includes(radical)),
+    [appliedRadicals, draftRadicals],
+  );
+  const pendingDelayMs = pendingAddedRadicals.length > 0 ? radicalFillDelayMs : radicalReleaseDelayMs;
 
   useEffect(() => {
-    completedRadicalsRef.current = new Set(
-      [...completedRadicalsRef.current].filter((radical) => pendingRadicals.includes(radical)),
-    );
-
     if (sameRadicals(draftRadicals, appliedRadicals)) {
-      completedRadicalsRef.current.clear();
       return undefined;
     }
 
-    if (pendingRadicals.length === 0) {
+    if (pendingAddedRadicals.length === 0 && pendingRemovedRadicals.length === 0) {
       setAppliedRadicals(draftRadicals);
-      completedRadicalsRef.current.clear();
+      return undefined;
     }
 
-    if (
-      pendingRadicals.length > 0 &&
-      pendingRadicals.every((radical) => completedRadicalsRef.current.has(radical))
-    ) {
+    const timeout = window.setTimeout(() => {
       setAppliedRadicals(draftRadicals);
-      completedRadicalsRef.current.clear();
-    }
+    }, pendingDelayMs);
 
-    return undefined;
-  }, [appliedRadicals, draftRadicals, pendingRadicals, pendingRadicalsKey]);
+    return () => window.clearTimeout(timeout);
+  }, [appliedRadicals, draftRadicals, pendingAddedRadicals.length, pendingDelayMs, pendingRemovedRadicals.length]);
 
   const searchCriteria = useMemo(
     () => ({ text, radicals: appliedRadicals, filters }),
@@ -106,19 +99,6 @@ const SearchPage = () => {
     ]
       .filter(Boolean)
       .join(' ');
-  };
-
-  const handleRadicalAnimationEnd = (radical: string, animationName: string) => {
-    if (!['radical-commit-fill', 'radical-release'].includes(animationName) || !pendingRadicals.includes(radical)) {
-      return;
-    }
-
-    completedRadicalsRef.current.add(radical);
-
-    if (pendingRadicals.every((item) => completedRadicalsRef.current.has(item))) {
-      completedRadicalsRef.current.clear();
-      setAppliedRadicals(draftRadicals);
-    }
   };
 
   const pageData = resultsQuery.data;
@@ -163,7 +143,6 @@ const SearchPage = () => {
                   key={radical._id}
                   type="button"
                   aria-pressed={draftRadicals.includes(radical._id)}
-                  onAnimationEnd={(event) => handleRadicalAnimationEnd(radical._id, event.animationName)}
                   onClick={() => toggleRadical(radical._id)}
                 >
                   <strong>{radical._id}</strong>
