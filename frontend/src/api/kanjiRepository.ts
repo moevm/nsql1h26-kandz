@@ -10,8 +10,11 @@ import type {
   ChartYAxis,
   Point,
   RadicalDocument,
+  RadicalGroup,
+  RadicalGrouping,
   RecognitionCandidate,
   SearchCriteria,
+  SortOrder,
 } from '../types/kanji';
 
 const api = axios.create({
@@ -112,6 +115,17 @@ export const getKanjiByLiteral = async (literal: string) =>
   request<KanjiDocument>(api.get(`/kanji/${encodeURIComponent(literal)}`));
 
 export const getRadicals = async () => request<RadicalDocument[]>(api.get('/radicals'));
+
+export const getRadicalGroups = async (groupBy: RadicalGrouping, order: SortOrder) =>
+  request<RadicalGroup[]>(
+    api.get('/radicals/groups', {
+      params: {
+        group_by: groupBy,
+        order,
+        buckets: 5,
+      },
+    }),
+  );
 
 export const recognizeDrawing = async (strokes: Point[][], filters?: SearchCriteria['filters']) =>
   request<RecognitionCandidate[]>(api.post('/recognize', { strokes, filters }));

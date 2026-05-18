@@ -692,6 +692,49 @@ select {
   height: 28px;
 }
 
+.radical-title {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.radical-heading .radical-group-selector {
+  color: $muted;
+  font-size: 17px;
+  font-weight: 650;
+
+  > span {
+    min-width: 0;
+    border-radius: 0;
+    background: transparent;
+    color: $muted;
+    padding: 0;
+    font-size: 17px;
+    font-weight: 650;
+    text-align: left;
+  }
+
+  .axis-link {
+    font-size: 17px;
+  }
+}
+
+.radical-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-icon {
+  color: $muted;
+
+  &.desc {
+    color: $text;
+  }
+}
+
 .compact-toolbar {
   justify-content: flex-end;
   margin-bottom: 10px;
@@ -708,7 +751,36 @@ select {
 .radical-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
+  overflow: hidden;
+  border: 1px solid $border;
+  border-radius: $radius;
+  gap: 0;
+}
+
+.radical-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.radical-group {
+  display: grid;
+  gap: 6px;
+}
+
+.radical-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: $muted;
+  font-size: 11px;
+  font-weight: 800;
+
+  small {
+    color: $muted;
+    font-size: 11px;
+    font-weight: 750;
+  }
 }
 
 .radical-search-grid {
@@ -718,7 +790,7 @@ select {
 
   .radical-grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 5px;
+    gap: 0;
   }
 
   .radical-tile {
@@ -777,6 +849,8 @@ select {
   isolation: isolate;
   overflow: hidden;
   min-height: 82px;
+  border: 0;
+  border-radius: 0;
   place-items: center;
   padding: 8px;
   transition:
@@ -837,7 +911,7 @@ select {
     opacity: 1;
     animation:
       radical-ink-rise 700ms linear forwards,
-      radical-ink-drift 1260ms linear forwards;
+      radical-ink-drift 1450ms linear forwards;
   }
 
   &.pending-removed {
