@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useOutletContext, useParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import CanvasSearch from '../components/CanvasSearch';
@@ -24,18 +24,57 @@ const searchPageSize = 20;
 const asMode = (value: string | undefined): SearchMode | null =>
   modes.includes(value as SearchMode) ? (value as SearchMode) : null;
 
+const sameRadicals = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
+
 const SearchPage = () => {
   const params = useParams();
   const { filters } = useOutletContext<AppOutletContext>();
   const mode = asMode(params.mode);
   const [text, setText] = useState('');
-  const [selectedRadicals, setSelectedRadicals] = useState<string[]>([]);
+  const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
+  const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
   const [pageState, setPageState] = useState({ key: '', page: 1 });
+  const completedRadicalsRef = useRef(new Set<string>());
   const radicalsQuery = useRadicalsQuery();
+  const pendingRadicals = useMemo(
+    () => [
+      ...draftRadicals.filter((radical) => !appliedRadicals.includes(radical)),
+      ...appliedRadicals.filter((radical) => !draftRadicals.includes(radical)),
+    ],
+    [appliedRadicals, draftRadicals],
+  );
+  const pendingRadicalsKey = pendingRadicals.join('\u001f');
+
+  useEffect(() => {
+    completedRadicalsRef.current = new Set(
+      [...completedRadicalsRef.current].filter((radical) => pendingRadicals.includes(radical)),
+    );
+
+    if (sameRadicals(draftRadicals, appliedRadicals)) {
+      completedRadicalsRef.current.clear();
+      return undefined;
+    }
+
+    if (pendingRadicals.length === 0) {
+      setAppliedRadicals(draftRadicals);
+      completedRadicalsRef.current.clear();
+    }
+
+    if (
+      pendingRadicals.length > 0 &&
+      pendingRadicals.every((radical) => completedRadicalsRef.current.has(radical))
+    ) {
+      setAppliedRadicals(draftRadicals);
+      completedRadicalsRef.current.clear();
+    }
+
+    return undefined;
+  }, [appliedRadicals, draftRadicals, pendingRadicals, pendingRadicalsKey]);
 
   const searchCriteria = useMemo(
-    () => ({ text, radicals: selectedRadicals, filters }),
-    [filters, selectedRadicals, text],
+    () => ({ text, radicals: appliedRadicals, filters }),
+    [appliedRadicals, filters, text],
   );
   const criteriaKey = JSON.stringify(searchCriteria);
   const page = pageState.key === criteriaKey ? pageState.page : 1;
@@ -50,9 +89,36 @@ const SearchPage = () => {
   };
 
   const toggleRadical = (radical: string) => {
-    setSelectedRadicals((current) =>
+    setDraftRadicals((current) =>
       current.includes(radical) ? current.filter((item) => item !== radical) : [...current, radical],
     );
+  };
+
+  const radicalClassName = (radical: string) => {
+    const isDraftSelected = draftRadicals.includes(radical);
+    const isApplied = appliedRadicals.includes(radical);
+
+    return [
+      'radical-tile',
+      isDraftSelected && isApplied ? 'selected' : '',
+      isDraftSelected && !isApplied ? 'pending-selected' : '',
+      !isDraftSelected && isApplied ? 'pending-removed' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  };
+
+  const handleRadicalAnimationEnd = (radical: string, animationName: string) => {
+    if (!['radical-commit-fill', 'radical-release'].includes(animationName) || !pendingRadicals.includes(radical)) {
+      return;
+    }
+
+    completedRadicalsRef.current.add(radical);
+
+    if (pendingRadicals.every((item) => completedRadicalsRef.current.has(item))) {
+      completedRadicalsRef.current.clear();
+      setAppliedRadicals(draftRadicals);
+    }
   };
 
   const pageData = resultsQuery.data;
@@ -81,8 +147,8 @@ const SearchPage = () => {
 
             <div className="section-heading radical-heading">
               <h2>Радикалы</h2>
-              {selectedRadicals.length > 0 ? (
-                <button className="icon-button compact-icon" type="button" onClick={() => setSelectedRadicals([])} aria-label="Сбросить радикалы">
+              {draftRadicals.length > 0 ? (
+                <button className="icon-button compact-icon" type="button" onClick={() => setDraftRadicals([])} aria-label="Сбросить радикалы">
                   <X size={16} />
                 </button>
               ) : (
@@ -93,9 +159,11 @@ const SearchPage = () => {
             <div className="radical-grid">
               {radicalsQuery.data?.map((radical) => (
                 <button
-                  className={selectedRadicals.includes(radical._id) ? 'radical-tile selected' : 'radical-tile'}
+                  className={radicalClassName(radical._id)}
                   key={radical._id}
                   type="button"
+                  aria-pressed={draftRadicals.includes(radical._id)}
+                  onAnimationEnd={(event) => handleRadicalAnimationEnd(radical._id, event.animationName)}
                   onClick={() => toggleRadical(radical._id)}
                 >
                   <strong>{radical._id}</strong>
