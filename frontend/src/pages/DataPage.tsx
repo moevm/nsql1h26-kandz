@@ -161,7 +161,15 @@ const DataPage = () => {
             <Download size={18} />
             Экспорт
           </button>
-          <button className="filled-button" type="button" onClick={() => setImportOpen(true)} aria-label="Импортировать данные">
+          <button
+            className="filled-button"
+            type="button"
+            onClick={() => {
+              setFormError(adminToken ? '' : 'Для импорта нужен вход администратора.');
+              setImportOpen(true);
+            }}
+            aria-label="Импортировать данные"
+          >
             <FileJson size={18} />
             Импорт
           </button>
@@ -176,7 +184,7 @@ const DataPage = () => {
           </div>
           {!adminToken ? (
             <>
-              <p className="muted-copy">Добавление новых записей доступно только после входа администратора.</p>
+              <p className="muted-copy">Войдите один раз, чтобы добавлять записи и импортировать JSON.</p>
               <label>
                 Логин
                 <input value={adminUsername} onChange={(event) => setAdminUsername(event.target.value)} autoComplete="username" />
@@ -203,7 +211,7 @@ const DataPage = () => {
                 }}
               >
                 <LogOut size={16} />
-                Выйти из режима добавления
+                Выйти
               </button>
               <label>
                 Иероглиф
@@ -338,6 +346,7 @@ const DataPage = () => {
 
       <ImportDialog
         open={importOpen}
+        adminToken={adminToken}
         onClose={() => setImportOpen(false)}
         onImported={(message) => setToast(message)}
       />
