@@ -2,7 +2,7 @@ import re
 from math import ceil
 from typing import Any
 
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from pymongo.database import Database
 
 from app.data.database import sync_radicals, touch_database
@@ -293,6 +293,98 @@ def aggregate_kanji(
 
 def list_radicals(db: Database) -> list[dict[str, Any]]:
     return [serialize_document(item) for item in db.radicals.find({}).sort("stroke_count", ASCENDING)]
+
+
+def _radical_usage_expression() -> dict[str, Any]:
+    return {"$size": {"$ifNull": ["$kanji_list", []]}}
+
+
+def _radical_count_label(low: int, high: int) -> str:
+    if low == high:
+        return f"{low} \u043a\u0430\u043d\u0434\u0437\u0438"
+
+    return f"{low}-{high} \u043a\u0430\u043d\u0434\u0437\u0438"
+
+
+def _stroke_label(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        word = "\u0447\u0435\u0440\u0442\u0430"
+    elif count % 10 in (2, 3, 4) and count % 100 not in (12, 13, 14):
+        word = "\u0447\u0435\u0440\u0442\u044b"
+    else:
+        word = "\u0447\u0435\u0440\u0442"
+
+    return f"{count} {word}"
+
+
+def _serialize_radical_group(group: dict[str, Any], group_by: str, index: int) -> dict[str, Any]:
+    low = int(group.get("min", 0))
+    high = int(group.get("max", low))
+    label = _stroke_label(low) if group_by == "strokes" else _radical_count_label(low, high)
+
+    return {
+        "id": f"{group_by}-{index}-{low}-{high}",
+        "label": label,
+        "min": low,
+        "max": high,
+        "count": int(group.get("count", 0)),
+        "radicals": [serialize_document(item) for item in group.get("radicals", [])],
+    }
+
+
+def list_radical_groups(
+    db: Database,
+    group_by: str = "usage",
+    order: str = "desc",
+    buckets: int = 5,
+) -> list[dict[str, Any]]:
+    sort_direction = DESCENDING if order == "desc" else ASCENDING
+
+    if group_by == "strokes":
+        pipeline = [
+            {"$addFields": {"usage_count": _radical_usage_expression()}},
+            {"$sort": {"stroke_count": sort_direction, "_id": ASCENDING}},
+            {
+                "$group": {
+                    "_id": "$stroke_count",
+                    "min": {"$min": "$stroke_count"},
+                    "max": {"$max": "$stroke_count"},
+                    "count": {"$sum": 1},
+                    "radicals": {"$push": "$$ROOT"},
+                }
+            },
+            {"$sort": {"_id": sort_direction}},
+        ]
+    else:
+        pipeline = [
+            {"$addFields": {"usage_count": _radical_usage_expression()}},
+            {
+                "$bucketAuto": {
+                    "groupBy": "$usage_count",
+                    "buckets": max(1, min(buckets, 10)),
+                    "output": {
+                        "count": {"$sum": 1},
+                        "min": {"$min": "$usage_count"},
+                        "max": {"$max": "$usage_count"},
+                        "radicals": {"$push": "$$ROOT"},
+                    },
+                }
+            },
+        ]
+
+    groups = list(db.radicals.aggregate(pipeline))
+    groups.sort(key=lambda item: (item.get("max", 0), item.get("min", 0)), reverse=order == "desc")
+
+    for group in groups:
+        metric = "stroke_count" if group_by == "strokes" else "usage_count"
+        group["radicals"].sort(
+            key=lambda item: (
+                -item.get(metric, 0) if order == "desc" else item.get(metric, 0),
+                item.get("_id", ""),
+            ),
+        )
+
+    return [_serialize_radical_group(group, group_by, index) for index, group in enumerate(groups)]
 
 
 def search_kanji(

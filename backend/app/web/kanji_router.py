@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Header, Query, Request
 
 from app.data.database import get_db
-from app.data.kanji_repository import list_radicals
+from app.data.kanji_repository import list_radical_groups, list_radicals
 from app.service.auth_service import require_admin_token
 from app.service import kanji_service
 
@@ -14,6 +14,16 @@ router = APIRouter(prefix="/api", tags=["kanji"])
 @router.get("/radicals")
 def read_radicals(request: Request) -> list[dict[str, Any]]:
     return list_radicals(get_db(request))
+
+
+@router.get("/radicals/groups")
+def read_radical_groups(
+    request: Request,
+    group_by: str = Query("usage", pattern="^(usage|strokes)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    buckets: int = Query(5, ge=1, le=10),
+) -> list[dict[str, Any]]:
+    return list_radical_groups(get_db(request), group_by=group_by, order=order, buckets=buckets)
 
 
 @router.get("/search")
@@ -161,8 +171,14 @@ async def create_kanji(
 
 
 @router.put("/kanji/{literal}")
-async def update_kanji(literal: str, request: Request) -> dict[str, Any]:
-    return kanji_service.update_kanji(get_db(request), literal, await request.json())
+async def update_kanji(
+    literal: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    db = get_db(request)
+    require_admin_token(db, request.app.state.settings, authorization)
+    return kanji_service.update_kanji(db, literal, await request.json())
 
 
 @router.post("/recognize")
