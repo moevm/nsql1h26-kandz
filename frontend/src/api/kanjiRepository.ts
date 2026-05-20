@@ -17,9 +17,14 @@ import type {
   SortOrder,
 } from '../types/kanji';
 
-const api = axios.create({
+let api = axios.create({
   baseURL: '/api',
 });
+
+// For tests: allow replacing internal api instance
+export function __setApiForTest(newApi: typeof api) {
+  api = newApi;
+}
 
 const extractApiError = (error: unknown) => {
   if (axios.isAxiosError(error)) {
