@@ -94,7 +94,11 @@ def replace_database(db: Database, settings: Settings, database: dict) -> None:
         {"$set": {"updated_at": database.get("updated_at") or now_iso()}},
         upsert=True,
     )
-    sync_radicals(db)
+    # If the imported database already contains radicals, respect them and
+    # avoid overwriting by syncing from kanji. Only sync when radicals were
+    # not provided in the import payload.
+    if not database.get("radicals"):
+        sync_radicals(db)
 
 
 def load_seed(settings: Settings) -> dict:

@@ -566,12 +566,18 @@ def chart_data(db: Database, query: dict[str, Any], x_axis: str, y_axis: str) ->
                 "$project": {
                     "_id": 0,
                     "label": "$_id",
-                    "value": {"$round": [{"$ifNull": ["$value", 0]}, 2]},
+                    "value": {"$ifNull": ["$value", 0]},
                     "count": 1,
                 }
             },
         ]
-        return [serialize_document(item) for item in db.kanji.aggregate(pipeline)]
+        items = [serialize_document(item) for item in db.kanji.aggregate(pipeline)]
+        # round numeric values to 2 decimals for consistency (mongomock lacks $round)
+        for it in items:
+            val = it.get("value")
+            if isinstance(val, float):
+                it["value"] = round(val, 2)
+        return items
 
     field = {
         "jlpt": "jlpt",
@@ -600,9 +606,14 @@ def chart_data(db: Database, query: dict[str, Any], x_axis: str, y_axis: str) ->
             "$project": {
                 "_id": 0,
                 "label": "$_id",
-                "value": {"$round": [{"$ifNull": ["$value", 0]}, 2]},
+                "value": {"$ifNull": ["$value", 0]},
                 "count": 1,
             }
         },
     ]
-    return [serialize_document(item) for item in db.kanji.aggregate(pipeline)]
+    items = [serialize_document(item) for item in db.kanji.aggregate(pipeline)]
+    for it in items:
+        val = it.get("value")
+        if isinstance(val, float):
+            it["value"] = round(val, 2)
+    return items
