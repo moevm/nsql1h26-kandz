@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import FilterPanel from './FilterPanel';
 import { defaultFilters } from '../hooks/useKanjiQueries';
 import type { GlobalFilters } from '../types/kanji';
@@ -30,7 +29,6 @@ describe('FilterPanel', () => {
   });
 
   it('toggles jlpt chip and reset button state', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     const onReset = vi.fn();
 
