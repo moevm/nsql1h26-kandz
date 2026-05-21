@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - feat/**
+      - feat-*
   pull_request:
 
 jobs:
@@ -31,6 +33,7 @@ jobs:
   frontend-lint-and-tests:
     name: Frontend lint and tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
 
     steps:
       - name: Check out repository
