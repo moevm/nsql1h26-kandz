@@ -2,31 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FilterPanel from './FilterPanel';
+import { defaultFilters } from '../hooks/useKanjiQueries';
 import type { GlobalFilters } from '../types/kanji';
 
 const emptyFilters: GlobalFilters = {
-  text: '',
-  radicals: [],
-  strokeCount: '',
-  grade: '',
-  jlpt: '',
-  filters: {
-    strokeFrom: '',
-    strokeTo: '',
-    jlptLevels: [],
-    gradeLevels: [],
-    freqFrom: '',
-    freqTo: '',
-    wordsFrom: '',
-    wordsTo: '',
-    examplesFrom: '',
-    examplesTo: '',
-    radicalsFrom: '',
-    radicalsTo: '',
-    readingsFrom: '',
-    readingsTo: '',
-    hasAnimation: false,
-  },
+  ...defaultFilters,
 };
 
 describe('FilterPanel', () => {
@@ -36,7 +16,7 @@ describe('FilterPanel', () => {
         collapsed
         filters={{
           ...emptyFilters,
-          filters: { ...emptyFilters.filters, hasAnimation: true },
+          hasAnimation: true,
           jlptLevels: ['5'],
         }}
         onChange={vi.fn()}

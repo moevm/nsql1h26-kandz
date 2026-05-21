@@ -3,16 +3,16 @@ import type { AxiosInstance } from 'axios';
 
 type ApiMock = Pick<AxiosInstance, 'get' | 'post' | 'put'>;
 
-const createApiMock = (): ApiMock => ({
+const mockApi = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
   put: vi.fn(),
-});
+}));
 
 vi.mock('axios', () => {
   return {
     default: {
-      create: () => createApiMock(),
+      create: () => mockApi as ApiMock,
     },
     isAxiosError: (error: unknown) => Boolean(error) && typeof error === 'object' && 'isAxiosError' in error && Boolean((error as { isAxiosError?: unknown }).isAxiosError),
   };

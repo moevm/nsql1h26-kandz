@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { Outlet } from 'react-router-dom';
 import App from './App';
 
 vi.mock('./components/AppShell', () => ({
-  default: () => <div data-testid="app-shell" />,
+  default: () => (
+    <div data-testid="app-shell">
+      <Outlet />
+    </div>
+  ),
 }));
 
 vi.mock('./components/LoadingState', () => ({
