@@ -118,7 +118,7 @@ const SearchPage = () => {
     }, pendingDelayMs);
 
     return () => window.clearTimeout(timeout);
-  }, [appliedRadicals, draftRadicals, pendingAddedRadicals.length, pendingDelayMs, pendingRemovedRadicals.length]);
+  }, [appliedRadicals, draftRadicals, pendingAddedRadicals.length, pendingDelayMs, pendingRemovedRadicals.length, setAppliedRadicals]);
 
   const searchCriteria = useMemo(
     () => ({ text, radicals: appliedRadicals, filters }),
