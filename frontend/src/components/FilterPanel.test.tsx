@@ -42,7 +42,7 @@ describe('FilterPanel', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'N5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'N5' }));
     expect(onChange).toHaveBeenCalled();
 
     const reset = screen.getByRole('button', { name: /сбросить/i });
@@ -50,7 +50,6 @@ describe('FilterPanel', () => {
   });
 
   it('updates range filter inputs', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
 
     render(
