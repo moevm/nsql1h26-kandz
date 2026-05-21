@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FilterPanel from './FilterPanel';
 import { defaultFilters } from '../hooks/useKanjiQueries';
@@ -66,7 +66,7 @@ describe('FilterPanel', () => {
     );
 
     const strokeFrom = screen.getAllByPlaceholderText('1')[0];
-    await user.type(strokeFrom, '3');
+    fireEvent.change(strokeFrom, { target: { value: '3' } });
 
     expect(onChange).toHaveBeenCalled();
   });

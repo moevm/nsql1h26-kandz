@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import { Outlet } from 'react-router-dom';
 import App from './App';
 
@@ -30,6 +30,10 @@ vi.mock('./pages/KanjiDetailPage', () => ({
 vi.mock('./pages/ChartsPage', () => ({
   default: () => <div data-testid="charts-page" />,
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('App routing', () => {
   it('redirects root to canvas search', async () => {
