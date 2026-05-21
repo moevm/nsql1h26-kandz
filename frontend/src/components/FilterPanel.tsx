@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, FocusEvent, SetStateAction } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import type { GlobalFilters } from '../types/kanji';
 
 interface FilterPanelProps {
@@ -21,6 +22,8 @@ interface RangeFilterConfig {
   toPlaceholder: string;
   chipLabel: string;
 }
+
+type RangeBound = 'from' | 'to';
 
 const jlptOptions = ['5', '4', '3', '2', '1', 'none'];
 const gradeOptions = ['1', '2', '3', '4', '5', '6', '8', 'none'];
@@ -60,16 +63,22 @@ const activeFilters = (filters: GlobalFilters) => [
 ].filter(Boolean) as string[];
 
 const RangeFilter = ({
+  activeBound,
   config,
   filters,
+  onActivate,
+  onDeactivate,
   update,
 }: {
+  activeBound: RangeBound | null;
   config: RangeFilterConfig;
   filters: GlobalFilters;
+  onActivate: (bound: RangeBound) => void;
+  onDeactivate: () => void;
   update: <Key extends keyof GlobalFilters>(key: Key, value: GlobalFilters[Key]) => void;
 }) => {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [activeBound, setActiveBound] = useState<'from' | 'to' | null>(null);
+  const pointerInsideRef = useRef(false);
   const rawFrom = filters[config.fromKey];
   const rawTo = filters[config.toKey];
   const fromValue = rawFrom ? clamp(Number(rawFrom), config.min, config.max) : config.min;
@@ -81,7 +90,7 @@ const RangeFilter = ({
   const fromPosition = ((safeFrom - config.min) / range) * 100;
   const toPosition = ((safeTo - config.min) / range) * 100;
 
-  const updateBound = (bound: 'from' | 'to', rawValue: string) => {
+  const updateBound = (bound: RangeBound, rawValue: string) => {
     if (!rawValue) {
       update(bound === 'from' ? config.fromKey : config.toKey, '' as never);
       return;
@@ -100,59 +109,100 @@ const RangeFilter = ({
 
   const handleBlur = (event: FocusEvent<HTMLElement>) => {
     if (!sectionRef.current?.contains(event.relatedTarget as Node | null)) {
-      setActiveBound(null);
+      if (pointerInsideRef.current) {
+        return;
+      }
+
+      onDeactivate();
     }
   };
 
   return (
-    <section className="filter-section range-filter-section" ref={sectionRef} onBlurCapture={handleBlur}>
+    <section
+      className="filter-section range-filter-section"
+      ref={sectionRef}
+      onBlurCapture={handleBlur}
+      onPointerDownCapture={() => {
+        pointerInsideRef.current = true;
+        window.setTimeout(() => {
+          pointerInsideRef.current = false;
+        }, 0);
+      }}
+    >
       <h3>{config.title}</h3>
       <div className="filter-field-row">
-        <label>
+        <label
+          className={activeBound === 'from' ? 'range-bound-field active' : 'range-bound-field'}
+          onPointerDown={() => onActivate('from')}
+        >
           <span>От</span>
           <input
             inputMode="numeric"
             value={rawFrom}
             onChange={(event) => updateBound('from', event.target.value)}
-            onFocus={() => setActiveBound('from')}
+            onFocus={() => onActivate('from')}
             placeholder={config.fromPlaceholder}
           />
         </label>
-        <label>
+        <label
+          className={activeBound === 'to' ? 'range-bound-field active' : 'range-bound-field'}
+          onPointerDown={() => onActivate('to')}
+        >
           <span>До</span>
           <input
             inputMode="numeric"
             value={rawTo}
             onChange={(event) => updateBound('to', event.target.value)}
-            onFocus={() => setActiveBound('to')}
+            onFocus={() => onActivate('to')}
             placeholder={config.toPlaceholder}
           />
         </label>
       </div>
 
-      {activeBound ? (
-        <div className="range-popover">
-          <div className="dual-range-shell" style={{ '--from': `${fromPosition}%`, '--to': `${toPosition}%` } as CSSProperties}>
-            <div className="dual-range-track" />
-            <div className="dual-range-band" />
-            <span className={activeBound === 'from' ? 'range-marker active from' : 'range-marker from'} />
-            <span className={activeBound === 'to' ? 'range-marker active to' : 'range-marker to'} />
-            <input
-              aria-label={activeBound === 'from' ? `${config.title}: минимум` : `${config.title}: максимум`}
-              className="range-input"
-              type="range"
-              min={config.min}
-              max={config.max}
-              value={activeValue}
-              onChange={(event) => updateBound(activeBound, event.target.value)}
-            />
-          </div>
-          <div className="range-scale">
-            <span>{config.min}</span>
-            <span>{config.max}</span>
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {activeBound ? (
+          <motion.div
+            animate={{ height: 'auto', marginTop: 10, opacity: 1, y: 0 }}
+            className="range-popover-motion"
+            exit={{ height: 0, marginTop: 0, opacity: 0, y: -7 }}
+            initial={{ height: 0, marginTop: 0, opacity: 0, y: -7 }}
+            transition={{
+              height: { type: 'spring', stiffness: 420, damping: 31, mass: 0.82 },
+              marginTop: { duration: 0.18, ease: 'easeOut' },
+              opacity: { duration: 0.14 },
+              y: { type: 'spring', stiffness: 520, damping: 25, mass: 0.7 },
+            }}
+          >
+            <motion.div
+              animate={{ scaleY: 1 }}
+              className="range-popover"
+              exit={{ scaleY: 0.97, transition: { type: 'spring', stiffness: 520, damping: 18, bounce: 0.24 } }}
+              initial={{ scaleY: 0.94 }}
+              transition={{ type: 'spring', stiffness: 430, damping: 19, bounce: 0.28 }}
+            >
+              <div className="dual-range-shell" style={{ '--from': `${fromPosition}%`, '--to': `${toPosition}%` } as CSSProperties}>
+                <div className="dual-range-track" />
+                <div className="dual-range-band" />
+                <span className={activeBound === 'from' ? 'range-marker active from' : 'range-marker from'} />
+                <span className={activeBound === 'to' ? 'range-marker active to' : 'range-marker to'} />
+                <input
+                  aria-label={activeBound === 'from' ? `${config.title}: минимум` : `${config.title}: максимум`}
+                  className="range-input"
+                  type="range"
+                  min={config.min}
+                  max={config.max}
+                  value={activeValue}
+                  onChange={(event) => updateBound(activeBound, event.target.value)}
+                />
+              </div>
+              <div className="range-scale">
+                <span>{config.min}</span>
+                <span>{config.max}</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </section>
   );
 };
@@ -160,9 +210,20 @@ const RangeFilter = ({
 const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: FilterPanelProps) => {
   const selectedFilters = activeFilters(filters);
   const count = selectedFilters.length;
+  const [activeRange, setActiveRange] = useState<{ key: string; bound: RangeBound } | null>(null);
 
   const update = <Key extends keyof GlobalFilters>(key: Key, value: GlobalFilters[Key]) => {
     onChange((current) => ({ ...current, [key]: value }));
+  };
+
+  const activateRange = (key: string, bound: RangeBound) => {
+    setActiveRange((current) =>
+      current?.key === key && current.bound === bound ? current : { key, bound },
+    );
+  };
+
+  const deactivateRange = (key: string) => {
+    setActiveRange((current) => (current?.key === key ? null : current));
   };
 
   const toggleListValue = (key: 'jlptLevels' | 'gradeLevels', value: string) => {
