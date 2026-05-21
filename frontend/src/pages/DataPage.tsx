@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Download, FileJson, LogIn, LogOut, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { motion, useAnimationControls } from 'motion/react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import type { AppOutletContext } from '../components/AppShell';
 import ImportDialog from '../components/ImportDialog';
 import LoadingState from '../components/LoadingState';
-import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
-import type { KanjiDocument, KanjiTableFilters, RadicalDocument } from '../types/kanji';
+import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiSearchPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
+import type { KanjiDocument, RadicalDocument } from '../types/kanji';
 
 const emptyForm = {
   literal: '',

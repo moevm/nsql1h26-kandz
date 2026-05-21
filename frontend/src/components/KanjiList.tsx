@@ -36,7 +36,7 @@ const KanjiList = ({
   isFetching = false,
   onPageChange,
 }: KanjiListProps) => (
-  <section className="results-panel" aria-label={title}>
+  <section className={isFetching ? 'results-panel updating' : 'results-panel'} aria-busy={isFetching} aria-label={title}>
     <div className="section-heading">
       <h2>{title}</h2>
       <span>{total ?? items.length}</span>
