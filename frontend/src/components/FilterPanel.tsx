@@ -191,15 +191,28 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
           </div>
 
           {selectedFilters.length > 0 ? (
-            <div className="active-filter-list" aria-label="Выбранные фильтры">
-              {selectedFilters.map((filter) => (
-                <span key={filter}>{filter}</span>
-              ))}
+            <div className="active-filter-row">
+              <div className="active-filter-list" aria-label="Выбранные фильтры">
+                {selectedFilters.map((filter) => (
+                  <span key={filter}>{filter}</span>
+                ))}
+              </div>
+              <button className="icon-button compact-icon" type="button" onClick={onReset} aria-label="Сбросить фильтры" title="Сбросить фильтры">
+                <RotateCcw size={16} />
+              </button>
             </div>
           ) : null}
 
           {rangeFilters.map((config) => (
-            <RangeFilter config={config} filters={filters} key={config.fromKey} update={update} />
+            <RangeFilter
+              activeBound={activeRange?.key === config.fromKey ? activeRange.bound : null}
+              config={config}
+              filters={filters}
+              key={config.fromKey}
+              onActivate={(bound) => activateRange(config.fromKey, bound)}
+              onDeactivate={() => deactivateRange(config.fromKey)}
+              update={update}
+            />
           ))}
 
           <section className="filter-section">
@@ -242,12 +255,6 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
             <input checked={filters.hasAnimation} type="checkbox" onChange={(event) => update('hasAnimation', event.target.checked)} />
           </label>
 
-          <div className="filter-panel-footer">
-            <button className="text-button compact" type="button" onClick={onReset} disabled={count === 0}>
-              <RotateCcw size={16} />
-              Сбросить
-            </button>
-          </div>
         </div>
       )}
     </aside>
