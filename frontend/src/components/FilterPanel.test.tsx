@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import FilterPanel from './FilterPanel';
 import { defaultFilters } from '../hooks/useKanjiQueries';
 import type { GlobalFilters } from '../types/kanji';
@@ -50,6 +51,7 @@ describe('FilterPanel', () => {
   });
 
   it('updates range filter inputs', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
 
     render(
@@ -63,7 +65,7 @@ describe('FilterPanel', () => {
     );
 
     const strokeFrom = screen.getAllByPlaceholderText('1')[0];
-    fireEvent.change(strokeFrom, { target: { value: '3' } });
+    await user.type(strokeFrom, '3');
 
     expect(onChange).toHaveBeenCalled();
   });
