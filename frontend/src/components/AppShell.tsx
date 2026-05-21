@@ -10,6 +10,10 @@ export interface AppOutletContext {
   filters: GlobalFilters;
   setFilters: Dispatch<SetStateAction<GlobalFilters>>;
   resetFilters: () => void;
+  draftRadicals: string[];
+  setDraftRadicals: Dispatch<SetStateAction<string[]>>;
+  appliedRadicals: string[];
+  setAppliedRadicals: Dispatch<SetStateAction<string[]>>;
 }
 
 const navItems = [
@@ -22,6 +26,8 @@ const navItems = [
 const AppShell = () => {
   const [filters, setFilters] = useState(defaultFilters);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
+  const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
 
   const resetFilters = () => setFilters(defaultFilters);
 
@@ -50,7 +56,17 @@ const AppShell = () => {
 
       <div className={filtersCollapsed ? 'workspace-layout filters-collapsed' : 'workspace-layout'}>
         <main className="app-main">
-          <Outlet context={{ filters, setFilters, resetFilters } satisfies AppOutletContext} />
+          <Outlet
+            context={{
+              filters,
+              setFilters,
+              resetFilters,
+              draftRadicals,
+              setDraftRadicals,
+              appliedRadicals,
+              setAppliedRadicals,
+            } satisfies AppOutletContext}
+          />
         </main>
 
         <FilterPanel

@@ -120,15 +120,6 @@ export interface SearchCriteria {
   filters?: GlobalFilters;
 }
 
-export interface KanjiTableFilters {
-  literal: string;
-  meaning: string;
-  radical: string;
-  strokeCount: string;
-  grade: string;
-  jlpt: string;
-}
-
 export type ChartXAxis = 'jlpt' | 'stroke_count' | 'grade' | 'radical_top';
 export type ChartYAxis = 'count' | 'avg_freq' | 'avg_words' | 'avg_examples' | 'avg_radicals' | 'avg_readings' | 'avg_strokes';
 

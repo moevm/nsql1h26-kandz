@@ -83,11 +83,10 @@ const RadicalGroupingSelector = ({
 
 const SearchPage = () => {
   const params = useParams();
-  const { filters } = useOutletContext<AppOutletContext>();
+  const { filters, draftRadicals, setDraftRadicals, appliedRadicals, setAppliedRadicals } =
+    useOutletContext<AppOutletContext>();
   const mode = asMode(params.mode);
   const [text, setText] = useState('');
-  const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
-  const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
   const [radicalGrouping, setRadicalGrouping] = useState<RadicalGrouping>('usage');
   const [radicalSortOrder, setRadicalSortOrder] = useState<SortOrder>('desc');
   const [pageState, setPageState] = useState({ key: '', page: 1 });

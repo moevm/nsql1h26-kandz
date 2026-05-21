@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FocusEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
@@ -52,6 +52,22 @@ const presets: Array<Omit<ChartConfig, 'id'>> = [
   { xAxis: 'grade', yAxis: 'avg_strokes' },
   { xAxis: 'radical_top', yAxis: 'count' },
 ];
+
+const chartFilterDelayMs = 420;
+
+const useDebouncedValue = <Value,>(value: Value, delayMs: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delayMs);
+
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, value]);
+
+  return debouncedValue;
+};
 
 const labelForAxisValue = (axis: ChartXAxis, value: number | string | null) => {
   if (value === null || value === 'none') {
@@ -215,6 +231,7 @@ const ChartCard = ({
 
 const ChartsPage = () => {
   const { filters } = useOutletContext<AppOutletContext>();
+  const debouncedFilters = useDebouncedValue(filters, chartFilterDelayMs);
   const [charts, setCharts] = useState<ChartConfig[]>([{ id: 'default', ...presets[0] }]);
 
   const addChart = () => {
@@ -243,7 +260,7 @@ const ChartsPage = () => {
         <div>
           <p className="eyebrow">Диаграммы</p>
           <h1>Срезы базы</h1>
-          <p>Графики пересчитываются на бекенде с учётом фильтров справа.</p>
+          <p>Графики пересчитываются с учётом фильтров справа.</p>
         </div>
       </section>
 
@@ -251,7 +268,7 @@ const ChartsPage = () => {
         {charts.map((chart) => (
           <ChartCard
             chart={chart}
-            filters={filters}
+            filters={debouncedFilters}
             key={chart.id}
             onChange={(patch) => updateChart(chart.id, patch)}
             onClose={() => closeChart(chart.id)}
