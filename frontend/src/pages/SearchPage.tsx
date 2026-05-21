@@ -108,14 +108,10 @@ const SearchPage = () => {
       return undefined;
     }
 
-    if (pendingAddedRadicals.length === 0 && pendingRemovedRadicals.length === 0) {
-      setAppliedRadicals(draftRadicals);
-      return undefined;
-    }
-
+    const delay = pendingAddedRadicals.length === 0 && pendingRemovedRadicals.length === 0 ? 0 : pendingDelayMs;
     const timeout = window.setTimeout(() => {
       setAppliedRadicals(draftRadicals);
-    }, pendingDelayMs);
+    }, delay);
 
     return () => window.clearTimeout(timeout);
   }, [appliedRadicals, draftRadicals, pendingAddedRadicals.length, pendingDelayMs, pendingRemovedRadicals.length, setAppliedRadicals]);
