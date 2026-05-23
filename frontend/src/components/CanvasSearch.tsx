@@ -23,6 +23,127 @@ const readSavedStrokes = (): Point[][] => {
   }
 };
 
+const smoothStroke = (stroke: Point[], windowSize = 3): Point[] => {
+  if (stroke.length <= 2 || windowSize <= 1) {
+    return stroke;
+  }
+
+  const radius = Math.floor(windowSize / 2);
+  return stroke.map((_, index) => {
+    let sumX = 0;
+    let sumY = 0;
+    let count = 0;
+
+    for (let offset = -radius; offset <= radius; offset += 1) {
+      const point = stroke[index + offset];
+      if (point) {
+        sumX += point.x;
+        sumY += point.y;
+        count += 1;
+      }
+    }
+
+    return {
+      x: sumX / count,
+      y: sumY / count,
+    };
+  });
+};
+
+const perpendicularDistance = (point: Point, lineStart: Point, lineEnd: Point) => {
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(point.x - lineStart.x, point.y - lineStart.y);
+  }
+
+  const t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (dx * dx + dy * dy);
+  const clamped = Math.max(0, Math.min(1, t));
+  const projX = lineStart.x + clamped * dx;
+  const projY = lineStart.y + clamped * dy;
+  return Math.hypot(point.x - projX, point.y - projY);
+};
+
+const simplifyStroke = (stroke: Point[], epsilon: number): Point[] => {
+  if (stroke.length <= 2) {
+    return stroke;
+  }
+
+  let maxDistance = 0;
+  let index = 0;
+  const start = stroke[0];
+  const end = stroke[stroke.length - 1];
+
+  for (let i = 1; i < stroke.length - 1; i += 1) {
+    const dist = perpendicularDistance(stroke[i], start, end);
+    if (dist > maxDistance) {
+      index = i;
+      maxDistance = dist;
+    }
+  }
+
+  if (maxDistance > epsilon) {
+    const left = simplifyStroke(stroke.slice(0, index + 1), epsilon);
+    const right = simplifyStroke(stroke.slice(index), epsilon);
+    return [...left.slice(0, -1), ...right];
+  }
+
+  return [start, end];
+};
+
+const resampleStroke = (stroke: Point[], pointCount = 64): Point[] => {
+  if (stroke.length <= 1) {
+    return stroke;
+  }
+
+  const distances: number[] = [];
+  let total = 0;
+  for (let index = 1; index < stroke.length; index += 1) {
+    const dx = stroke[index].x - stroke[index - 1].x;
+    const dy = stroke[index].y - stroke[index - 1].y;
+    const dist = Math.hypot(dx, dy);
+    distances.push(dist);
+    total += dist;
+  }
+
+  if (total <= 0) {
+    return stroke;
+  }
+
+  const step = total / (pointCount - 1);
+  const resampled: Point[] = [stroke[0]];
+  let accumulated = 0;
+  let distanceIndex = 0;
+
+  for (let index = 1; index < stroke.length && resampled.length < pointCount; index += 1) {
+    let segmentLength = distances[distanceIndex] ?? 0;
+    let start = stroke[index - 1];
+    let end = stroke[index];
+
+    while (segmentLength > 0 && accumulated + segmentLength >= step && resampled.length < pointCount) {
+      const remainder = step - accumulated;
+      const ratio = segmentLength === 0 ? 0 : remainder / segmentLength;
+      const newPoint = {
+        x: start.x + (end.x - start.x) * ratio,
+        y: start.y + (end.y - start.y) * ratio,
+      };
+      resampled.push(newPoint);
+      start = newPoint;
+      segmentLength -= remainder;
+      accumulated = 0;
+    }
+
+    accumulated += segmentLength;
+    distanceIndex += 1;
+  }
+
+  while (resampled.length < pointCount) {
+    resampled.push(stroke[stroke.length - 1]);
+  }
+
+  return resampled;
+};
+
 const normalizeStrokes = (strokes: Point[][], targetSize = 100, padding = 6): Point[][] => {
   const points = strokes.flat();
   if (points.length === 0) {
@@ -50,12 +171,17 @@ const normalizeStrokes = (strokes: Point[][], targetSize = 100, padding = 6): Po
   const offsetX = padding + (usableSize - scaledWidth) / 2;
   const offsetY = padding + (usableSize - scaledHeight) / 2;
 
-  return strokes.map((stroke) =>
-    stroke.map((point) => ({
+  const epsilon = Math.max(1, usableSize * 0.02);
+
+  return strokes.map((stroke) => {
+    const normalized = stroke.map((point) => ({
       x: (point.x - minX) * scale + offsetX,
       y: (point.y - minY) * scale + offsetY,
-    })),
-  );
+    }));
+    const smoothed = smoothStroke(normalized, 3);
+    const simplified = simplifyStroke(smoothed, epsilon);
+    return resampleStroke(simplified, 64);
+  });
 };
 
 const scoreCandidate = (recognizer: StrokeRecognizer, strokes: Point[][], kanji: KanjiDocument): number => {
@@ -75,8 +201,9 @@ const scoreCandidate = (recognizer: StrokeRecognizer, strokes: Point[][], kanji:
   const avgScore = totalScore / count;
   const targetStrokeCount = kanji.stroke_count ?? targetPaths.length;
   const strokeDelta = Math.abs(strokes.length - targetStrokeCount);
-  const mismatchPenalty = strokeDelta * 30;
-  return avgScore + mismatchPenalty;
+  const mismatchPenalty = strokeDelta * 45;
+  const exactMatchBonus = strokeDelta === 0 ? -18 : 0;
+  return avgScore + mismatchPenalty + exactMatchBonus;
 };
 
 const toPercentScore = (score: number) => {
@@ -101,7 +228,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
     const recognizer = new StrokeRecognizer();
     const normalizedStrokes = normalizeStrokes(strokes);
-    const ranked = candidatesQuery.data
+    const scored = candidatesQuery.data
       .filter((kanji) => Boolean(kanji.kvg?.stroke_paths?.length))
       .map((kanji) => {
         const score = scoreCandidate(recognizer, normalizedStrokes, kanji);
@@ -109,10 +236,25 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
           kanji,
           score: toPercentScore(score),
         };
-      })
-      .sort((first, second) => second.score - first.score);
+      });
 
-    return ranked.slice(0, 48);
+    const [exactMatches, otherMatches] = scored.reduce(
+      (acc, item) => {
+        const targetStrokeCount = item.kanji.stroke_count ?? item.kanji.kvg?.stroke_paths?.length ?? 0;
+        if (targetStrokeCount === strokes.length) {
+          acc[0].push(item);
+        } else {
+          acc[1].push(item);
+        }
+        return acc;
+      },
+      [[], []] as [RecognitionCandidate[], RecognitionCandidate[]],
+    );
+
+    exactMatches.sort((first, second) => second.score - first.score);
+    otherMatches.sort((first, second) => second.score - first.score);
+
+    return [...exactMatches, ...otherMatches].slice(0, 48);
   }, [candidatesQuery.data, strokes]);
 
   const isInitialLoading = candidatesQuery.isFetching && strokes.length > 0 && !candidatesQuery.data;
