@@ -1,10 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addKanji,
   exportDatabase,
   getChartData,
   getKanjiByLiteral,
-  getKanjiPage,
   getRadicalGroups,
   getRadicals,
   importDatabaseFromFile,
@@ -14,7 +13,7 @@ import {
   searchKanjiPage,
   updateKanji,
 } from '../api/kanjiRepository';
-import type { ChartXAxis, ChartYAxis, GlobalFilters, KanjiTableFilters, Point, RadicalGrouping, SearchCriteria, SortOrder } from '../types/kanji';
+import type { ChartXAxis, ChartYAxis, GlobalFilters, Point, RadicalGrouping, SearchCriteria, SortOrder } from '../types/kanji';
 import type { KanjiDocument } from '../types/kanji';
 
 export const defaultFilters: GlobalFilters = {
@@ -47,12 +46,7 @@ export const useKanjiSearchPageQuery = (criteria: SearchCriteria, page: number, 
     queryKey: ['kanji-search-page', criteria, page, pageSize],
     queryFn: () => searchKanjiPage(criteria, page, pageSize),
     enabled,
-  });
-
-export const useKanjiPageQuery = (filters: KanjiTableFilters, page: number, pageSize: number) =>
-  useQuery({
-    queryKey: ['kanji-page', filters, page, pageSize],
-    queryFn: () => getKanjiPage(filters, page, pageSize),
+    placeholderData: keepPreviousData,
   });
 
 export const useKanjiDetailQuery = (literal: string | undefined) =>
@@ -138,7 +132,7 @@ export const useUpdateKanjiMutation = () => {
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['kanji-detail', variables.literal] });
       void queryClient.invalidateQueries({ queryKey: ['kanji-search'] });
-      void queryClient.invalidateQueries({ queryKey: ['kanji-page'] });
+      void queryClient.invalidateQueries({ queryKey: ['kanji-search-page'] });
       void queryClient.invalidateQueries({ queryKey: ['radicals'] });
     },
   });

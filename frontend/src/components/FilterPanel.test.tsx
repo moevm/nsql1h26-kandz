@@ -28,11 +28,11 @@ describe('FilterPanel', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('toggles jlpt chip and reset button state', async () => {
+  it('toggles jlpt chip and exposes reset for active filters', async () => {
     const onChange = vi.fn();
     const onReset = vi.fn();
 
-    render(
+    const { rerender } = render(
       <FilterPanel
         collapsed={false}
         filters={emptyFilters}
@@ -43,10 +43,20 @@ describe('FilterPanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'N5' }));
-    // No assertion on onChange here; interaction should not crash.
+    expect(onChange).toHaveBeenCalledTimes(1);
 
-    const reset = screen.getByRole('button', { name: /сбросить/i });
-    expect(reset).toBeDisabled();
+    rerender(
+      <FilterPanel
+        collapsed={false}
+        filters={{ ...emptyFilters, jlptLevels: ['5'] }}
+        onChange={onChange}
+        onReset={onReset}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /сбросить фильтры/i }));
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 
   it('updates range filter inputs', async () => {

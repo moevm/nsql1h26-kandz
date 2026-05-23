@@ -24,7 +24,13 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useParams: () => ({ mode: 'radicals' }),
-    useOutletContext: () => ({ filters: { strokeFrom: '', strokeTo: '', jlptLevels: [], gradeLevels: [], freqFrom: '', freqTo: '', wordsFrom: '', wordsTo: '', examplesFrom: '', examplesTo: '', radicalsFrom: '', radicalsTo: '', readingsFrom: '', readingsTo: '', hasAnimation: false } }),
+    useOutletContext: () => ({
+      filters: { strokeFrom: '', strokeTo: '', jlptLevels: [], gradeLevels: [], freqFrom: '', freqTo: '', wordsFrom: '', wordsTo: '', examplesFrom: '', examplesTo: '', radicalsFrom: '', radicalsTo: '', readingsFrom: '', readingsTo: '', hasAnimation: false },
+      draftRadicals: [],
+      setDraftRadicals: vi.fn(),
+      appliedRadicals: [],
+      setAppliedRadicals: vi.fn(),
+    }),
     useNavigate: () => vi.fn(),
   };
 });

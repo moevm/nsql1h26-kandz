@@ -4,7 +4,6 @@ import type {
   KanjiDatabase,
   KanjiDocument,
   KanjiPage,
-  KanjiTableFilters,
   ChartBucket,
   ChartXAxis,
   ChartYAxis,
@@ -82,15 +81,6 @@ const searchParams = (criteria: SearchCriteria = {}) => ({
   has_animation: criteria.filters?.hasAnimation || undefined,
 });
 
-const tableParams = (filters: KanjiTableFilters) => ({
-  literal: filters.literal.trim() || undefined,
-  meaning: filters.meaning.trim() || undefined,
-  radical: filters.radical.trim() || undefined,
-  stroke_count: numericParam(filters.strokeCount),
-  grade: numericParam(filters.grade),
-  jlpt: numericParam(filters.jlpt),
-});
-
 export const searchKanji = async (criteria: SearchCriteria = {}) =>
   request<KanjiDocument[]>(api.get('/search', { params: searchParams(criteria) }));
 
@@ -99,17 +89,6 @@ export const searchKanjiPage = async (criteria: SearchCriteria = {}, page: numbe
     api.get('/search/page', {
       params: {
         ...searchParams(criteria),
-        page,
-        page_size: pageSize,
-      },
-    }),
-  );
-
-export const getKanjiPage = async (filters: KanjiTableFilters, page: number, pageSize: number) =>
-  request<KanjiPage>(
-    api.get('/kanji', {
-      params: {
-        ...tableParams(filters),
         page,
         page_size: pageSize,
       },

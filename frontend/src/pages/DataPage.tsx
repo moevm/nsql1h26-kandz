@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Download, FileJson, LogIn, LogOut, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { motion, useAnimationControls } from 'motion/react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import type { AppOutletContext } from '../components/AppShell';
 import ImportDialog from '../components/ImportDialog';
 import LoadingState from '../components/LoadingState';
-import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
-import type { KanjiDocument, KanjiTableFilters, RadicalDocument } from '../types/kanji';
+import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiSearchPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
+import type { KanjiDocument, RadicalDocument } from '../types/kanji';
 
 const emptyForm = {
   literal: '',
@@ -18,33 +20,30 @@ const emptyForm = {
   jlpt: '',
 };
 
-const emptyFilters: KanjiTableFilters = {
-  literal: '',
-  meaning: '',
-  radical: '',
-  strokeCount: '',
-  grade: '',
-  jlpt: '',
-};
-
 const DataPage = () => {
   const navigate = useNavigate();
+  const { filters } = useOutletContext<AppOutletContext>();
   const addMutation = useAddKanjiMutation();
   const loginMutation = useAdminLoginMutation();
   const exportMutation = useExportMutation();
   const radicalsQuery = useRadicalsQuery();
+  const lanternControls = useAnimationControls();
+  const lanternGlowControls = useAnimationControls();
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
-  const [filters, setFilters] = useState<KanjiTableFilters>(emptyFilters);
-  const [page, setPage] = useState(1);
+  const [pageState, setPageState] = useState({ key: '', page: 1 });
   const [importOpen, setImportOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [adminUsername, setAdminUsername] = useState('admin');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminToken, setAdminToken] = useState('');
   const [adminName, setAdminName] = useState('');
+  const [lanternSignal, setLanternSignal] = useState(0);
   const pageSize = 8;
-  const tableQuery = useKanjiPageQuery(filters, page, pageSize);
+  const searchCriteria = useMemo(() => ({ filters }), [filters]);
+  const criteriaKey = JSON.stringify(searchCriteria);
+  const page = pageState.key === criteriaKey ? pageState.page : 1;
+  const tableQuery = useKanjiSearchPageQuery(searchCriteria, page, pageSize);
 
   const pageData = tableQuery.data;
   const pageItems = pageData?.items ?? [];
@@ -52,10 +51,35 @@ const DataPage = () => {
   const currentPage = pageData?.page ?? page;
   const totalPages = pageData?.total_pages ?? 1;
 
-  const updateFilter = (key: keyof KanjiTableFilters, value: string) => {
-    setFilters((current) => ({ ...current, [key]: value }));
-    setPage(1);
-  };
+  useEffect(() => {
+    if (lanternSignal === 0) {
+      return;
+    }
+
+    lanternControls.set({ rotate: 0, x: 0, y: 0 });
+    lanternGlowControls.set({ opacity: 0.46, scale: 1 });
+
+    void lanternControls.start({
+      rotate: [0, -8, 5.8, -3.2, 1.7, -0.6, 0],
+      x: [0, -2.2, 1.4, -0.8, 0.4, -0.1, 0],
+      y: [0, 1.2, -0.7, 0.5, -0.2, 0.1, 0],
+      transition: {
+        duration: 1.08,
+        ease: [0.2, 0.86, 0.28, 1],
+        times: [0, 0.13, 0.3, 0.48, 0.66, 0.82, 1],
+      },
+    });
+
+    void lanternGlowControls.start({
+      opacity: [0.46, 0.88, 0.55, 0.82, 0.5, 0.62, 0.46],
+      scale: [1, 1.1, 1.02, 1.08, 1],
+      transition: {
+        duration: 1.08,
+        ease: 'easeOut',
+        times: [0, 0.16, 0.34, 0.56, 1],
+      },
+    });
+  }, [lanternControls, lanternGlowControls, lanternSignal]);
 
   const handleExport = async () => {
     try {
@@ -66,13 +90,22 @@ const DataPage = () => {
     }
   };
 
+  const nudgeLantern = () => {
+    setLanternSignal((value) => value + 1);
+  };
+
   const handleAdminLogin = async (event: FormEvent) => {
     event.preventDefault();
     setFormError('');
-    const session = await loginMutation.mutateAsync({ username: adminUsername, password: adminPassword });
-    setAdminToken(session.access_token);
-    setAdminName(session.username);
-    setAdminPassword('');
+
+    try {
+      const session = await loginMutation.mutateAsync({ username: adminUsername, password: adminPassword });
+      setAdminToken(session.access_token);
+      setAdminName(session.username);
+      setAdminPassword('');
+    } catch {
+      nudgeLantern();
+    }
   };
 
   const resolveRadicals = (value: string, radicals: RadicalDocument[]) => {
@@ -104,6 +137,7 @@ const DataPage = () => {
 
     if (!adminToken) {
       setFormError('Для добавления записи нужен вход администратора.');
+      nudgeLantern();
       return;
     }
 
@@ -141,7 +175,7 @@ const DataPage = () => {
 
     await addMutation.mutateAsync({ kanji, token: adminToken });
     setForm(emptyForm);
-    setPage(1);
+    setPageState({ key: criteriaKey, page: 1 });
   };
 
   const openKanji = (literal: string) => {
@@ -165,7 +199,12 @@ const DataPage = () => {
             className="filled-button"
             type="button"
             onClick={() => {
-              setFormError(adminToken ? '' : 'Для импорта нужен вход администратора.');
+              if (!adminToken) {
+                setFormError('Для импорта нужен вход администратора.');
+                nudgeLantern();
+              } else {
+                setFormError('');
+              }
               setImportOpen(true);
             }}
             aria-label="Импортировать данные"
@@ -257,20 +296,25 @@ const DataPage = () => {
               </button>
             </>
           )}
+          {!adminToken ? (
+            <motion.div
+              animate={lanternControls}
+              className="data-lantern-anchor"
+              aria-hidden="true"
+            >
+              <i className="data-lantern-cord" />
+              <i className="data-lantern-cap top" />
+              <i className="data-lantern-body" />
+              <motion.i animate={lanternGlowControls} className="data-lantern-glow" />
+              <i className="data-lantern-cap bottom" />
+            </motion.div>
+          ) : null}
         </form>
 
-        <section className="results-panel data-panel">
+        <section className={tableQuery.isFetching ? 'results-panel data-panel updating' : 'results-panel data-panel'} aria-busy={tableQuery.isFetching}>
           <div className="section-heading">
             <h2>Коллекция kanji</h2>
             <span>{total}</span>
-          </div>
-          <div className="table-filters">
-            <input value={filters.literal} onChange={(event) => updateFilter('literal', event.target.value)} placeholder="Иероглиф" />
-            <input value={filters.meaning} onChange={(event) => updateFilter('meaning', event.target.value)} placeholder="Значение" />
-            <input value={filters.radical} onChange={(event) => updateFilter('radical', event.target.value)} placeholder="Радикал или чтение" />
-            <input inputMode="numeric" value={filters.strokeCount} onChange={(event) => updateFilter('strokeCount', event.target.value)} placeholder="Черт" />
-            <input inputMode="numeric" value={filters.grade} onChange={(event) => updateFilter('grade', event.target.value)} placeholder="Класс" />
-            <input inputMode="numeric" value={filters.jlpt} onChange={(event) => updateFilter('jlpt', event.target.value)} placeholder="JLPT" />
           </div>
 
           {tableQuery.isLoading ? <LoadingState label="Открываем таблицу" /> : null}
@@ -329,13 +373,13 @@ const DataPage = () => {
               </div>
 
               <div className="pagination-row">
-                <button className="text-button compact" type="button" disabled={currentPage === 1 || tableQuery.isFetching} onClick={() => setPage((value) => value - 1)}>
+                <button className="text-button compact" type="button" disabled={currentPage === 1 || tableQuery.isFetching} onClick={() => setPageState({ key: criteriaKey, page: page - 1 })}>
                   Назад
                 </button>
                 <span>
                   {currentPage} / {totalPages}
                 </span>
-                <button className="text-button compact" type="button" disabled={currentPage === totalPages || tableQuery.isFetching} onClick={() => setPage((value) => value + 1)}>
+                <button className="text-button compact" type="button" disabled={currentPage === totalPages || tableQuery.isFetching} onClick={() => setPageState({ key: criteriaKey, page: page + 1 })}>
                   Вперёд
                 </button>
               </div>
