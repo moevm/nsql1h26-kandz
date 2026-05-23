@@ -41,10 +41,15 @@ const ImportDialog = ({ open, adminToken, onClose, onImported }: ImportDialogPro
       return;
     }
 
-    await importMutation.mutateAsync({ file, token: adminToken });
-    onImported('Импорт завершён: данные заменены JSON-файлом.');
-    event.target.value = '';
-    onClose();
+    try {
+      await importMutation.mutateAsync({ file, token: adminToken });
+      onImported('Импорт завершён: данные заменены JSON-файлом.');
+      onClose();
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : 'Не удалось импортировать JSON.');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   return (

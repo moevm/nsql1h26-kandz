@@ -125,9 +125,14 @@ export const getChartData = async (criteria: SearchCriteria, xAxis: ChartXAxis, 
     }),
   );
 
-export const exportDatabase = async () => {
+export const exportDatabase = async (token: string) => {
   try {
-    const response = await api.get<Blob>('/export', { responseType: 'blob' });
+    const response = await api.get<Blob>('/export', {
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const blob = new Blob([response.data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -164,8 +169,14 @@ export const addKanji = async (kanji: KanjiDocument, token: string) =>
     }),
   );
 
-export const updateKanji = async (literal: string, kanji: KanjiDocument) =>
-  request<KanjiDocument>(api.put(`/kanji/${encodeURIComponent(literal)}`, kanji));
+export const updateKanji = async (literal: string, kanji: KanjiDocument, token: string) =>
+  request<KanjiDocument>(
+    api.put(`/kanji/${encodeURIComponent(literal)}`, kanji, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }),
+  );
 
 export const loginAdmin = async (username: string, password: string) =>
   request<{ username: string; access_token: string; token_type: string }>(

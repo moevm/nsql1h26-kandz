@@ -14,6 +14,10 @@ export interface AppOutletContext {
   setDraftRadicals: Dispatch<SetStateAction<string[]>>;
   appliedRadicals: string[];
   setAppliedRadicals: Dispatch<SetStateAction<string[]>>;
+  adminToken: string;
+  adminName: string;
+  setAdminSession: (username: string, token: string) => void;
+  clearAdminSession: () => void;
 }
 
 const navItems = [
@@ -28,8 +32,15 @@ const AppShell = () => {
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
   const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
+  const [adminSession, setAdminSessionState] = useState({ username: '', token: '' });
 
   const resetFilters = () => setFilters(defaultFilters);
+  const setAdminSession = (username: string, token: string) => {
+    setAdminSessionState({ username, token });
+  };
+  const clearAdminSession = () => {
+    setAdminSessionState({ username: '', token: '' });
+  };
 
   return (
     <div className="app-shell">
@@ -65,6 +76,10 @@ const AppShell = () => {
               setDraftRadicals,
               appliedRadicals,
               setAppliedRadicals,
+              adminToken: adminSession.token,
+              adminName: adminSession.username,
+              setAdminSession,
+              clearAdminSession,
             } satisfies AppOutletContext}
           />
         </main>
