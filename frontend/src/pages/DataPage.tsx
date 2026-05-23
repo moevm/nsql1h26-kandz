@@ -31,7 +31,7 @@ const DataPage = () => {
   const lanternGlowControls = useAnimationControls();
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
-  const [page, setPage] = useState(1);
+  const [pageState, setPageState] = useState({ key: '', page: 1 });
   const [importOpen, setImportOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [adminUsername, setAdminUsername] = useState('admin');
@@ -41,6 +41,8 @@ const DataPage = () => {
   const [lanternSignal, setLanternSignal] = useState(0);
   const pageSize = 8;
   const searchCriteria = useMemo(() => ({ filters }), [filters]);
+  const criteriaKey = JSON.stringify(searchCriteria);
+  const page = pageState.key === criteriaKey ? pageState.page : 1;
   const tableQuery = useKanjiSearchPageQuery(searchCriteria, page, pageSize);
 
   const pageData = tableQuery.data;
@@ -78,10 +80,6 @@ const DataPage = () => {
       },
     });
   }, [lanternControls, lanternGlowControls, lanternSignal]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [filters]);
 
   const handleExport = async () => {
     try {
@@ -177,7 +175,7 @@ const DataPage = () => {
 
     await addMutation.mutateAsync({ kanji, token: adminToken });
     setForm(emptyForm);
-    setPage(1);
+    setPageState({ key: criteriaKey, page: 1 });
   };
 
   const openKanji = (literal: string) => {
@@ -375,13 +373,13 @@ const DataPage = () => {
               </div>
 
               <div className="pagination-row">
-                <button className="text-button compact" type="button" disabled={currentPage === 1 || tableQuery.isFetching} onClick={() => setPage((value) => value - 1)}>
+                <button className="text-button compact" type="button" disabled={currentPage === 1 || tableQuery.isFetching} onClick={() => setPageState({ key: criteriaKey, page: page - 1 })}>
                   Назад
                 </button>
                 <span>
                   {currentPage} / {totalPages}
                 </span>
-                <button className="text-button compact" type="button" disabled={currentPage === totalPages || tableQuery.isFetching} onClick={() => setPage((value) => value + 1)}>
+                <button className="text-button compact" type="button" disabled={currentPage === totalPages || tableQuery.isFetching} onClick={() => setPageState({ key: criteriaKey, page: page + 1 })}>
                   Вперёд
                 </button>
               </div>
