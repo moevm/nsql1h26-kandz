@@ -10,18 +10,10 @@ const mockApi = vi.hoisted(() => ({
 }));
 
 vi.mock('axios', () => {
-  const isAxiosError = (error: unknown) => {
-    if (!error || typeof error !== 'object') {
-      return false;
-    }
-
-    return Boolean((error as { isAxiosError?: unknown }).isAxiosError);
-  };
-
   return {
     default: {
       create: () => mockApi as ApiMock,
-      isAxiosError,
+      isAxiosError: (error: unknown) => error !== null && typeof error === 'object' && 'isAxiosError' in error && Boolean((error as { isAxiosError?: unknown }).isAxiosError),
     },
   };
 });
