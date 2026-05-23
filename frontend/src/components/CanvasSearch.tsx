@@ -118,7 +118,7 @@ const resampleStroke = (stroke: Point[], pointCount = 64): Point[] => {
   for (let index = 1; index < stroke.length && resampled.length < pointCount; index += 1) {
     let segmentLength = distances[distanceIndex] ?? 0;
     let start = stroke[index - 1];
-    let end = stroke[index];
+    const end = stroke[index];
 
     while (segmentLength > 0 && accumulated + segmentLength >= step && resampled.length < pointCount) {
       const remainder = step - accumulated;
