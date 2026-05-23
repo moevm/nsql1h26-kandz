@@ -8,6 +8,7 @@ from pymongo.errors import PyMongoError
 
 from app.core.config import Settings
 from app.data.serialization import serialize_document
+from app.service.auth_service import default_admin_user
 from app.service.validation import now_iso, validate_database
 
 
@@ -82,9 +83,13 @@ def sync_radicals(db: Database) -> None:
 
 
 def replace_database(db: Database, settings: Settings, database: dict) -> None:
+    existing_users = list(db.users.find({}))
+    incoming_users = database.get("users") if isinstance(database.get("users"), list) else []
+    preserved_users = incoming_users or existing_users or [default_admin_user()]
+
     for collection_name in settings.collections:
         db[collection_name].delete_many({})
-        items = database.get(collection_name, [])
+        items = preserved_users if collection_name == "users" else database.get(collection_name, [])
 
         if items:
             db[collection_name].insert_many(items)

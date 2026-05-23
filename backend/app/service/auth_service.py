@@ -25,6 +25,24 @@ def sign_payload(payload: str, secret: str) -> str:
     return encode_part(signature)
 
 
+def hash_password(password: str, salt: str = "kanji-lookup-admin", iterations: int = 120_000) -> str:
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        iterations,
+    )
+    return f"pbkdf2_sha256${iterations}${salt}${encode_part(digest)}"
+
+
+def default_admin_user() -> dict[str, Any]:
+    return {
+        "username": "admin",
+        "password_hash": hash_password("admin123"),
+        "created_at": "2026-04-29T12:00:00Z",
+    }
+
+
 def create_admin_token(username: str, settings: Settings, ttl_seconds: int = 3600) -> str:
     payload = {
         "sub": username,
