@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { CornerUpLeft, Eraser, Sparkles } from 'lucide-react';
-import { useFilteredRecognitionQuery } from '../hooks/useKanjiQueries';
-import type { GlobalFilters, Point } from '../types/kanji';
+import { StrokeRecognizer } from 'kanji-recognizer';
+import { useKanjiSearchQuery } from '../hooks/useKanjiQueries';
+import type { GlobalFilters, KanjiDocument, Point, RecognitionCandidate } from '../types/kanji';
 import KanjiList from './KanjiList';
 import LoadingState from './LoadingState';
 
@@ -22,17 +23,99 @@ const readSavedStrokes = (): Point[][] => {
   }
 };
 
+const normalizeStrokes = (strokes: Point[][], targetSize = 100, padding = 6): Point[][] => {
+  const points = strokes.flat();
+  if (points.length === 0) {
+    return strokes;
+  }
+
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+
+  points.forEach((point) => {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  });
+
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const usableSize = Math.max(1, targetSize - padding * 2);
+  const scale = usableSize / Math.max(width, height);
+  const scaledWidth = width * scale;
+  const scaledHeight = height * scale;
+  const offsetX = padding + (usableSize - scaledWidth) / 2;
+  const offsetY = padding + (usableSize - scaledHeight) / 2;
+
+  return strokes.map((stroke) =>
+    stroke.map((point) => ({
+      x: (point.x - minX) * scale + offsetX,
+      y: (point.y - minY) * scale + offsetY,
+    })),
+  );
+};
+
+const scoreCandidate = (recognizer: StrokeRecognizer, strokes: Point[][], kanji: KanjiDocument): number => {
+  const targetPaths = kanji.kvg?.stroke_paths ?? [];
+  if (targetPaths.length === 0 || strokes.length === 0) {
+    return Infinity;
+  }
+
+  const count = Math.min(strokes.length, targetPaths.length);
+  let totalScore = 0;
+
+  for (let index = 0; index < count; index += 1) {
+    const result = recognizer.evaluate(strokes[index], targetPaths[index]);
+    totalScore += Number.isFinite(result.score) ? result.score : 120;
+  }
+
+  const avgScore = totalScore / count;
+  const targetStrokeCount = kanji.stroke_count ?? targetPaths.length;
+  const strokeDelta = Math.abs(strokes.length - targetStrokeCount);
+  const mismatchPenalty = strokeDelta * 30;
+  return avgScore + mismatchPenalty;
+};
+
+const toPercentScore = (score: number) => {
+  if (!Number.isFinite(score)) {
+    return 0;
+  }
+
+  const normalized = 100 - Math.round(score * 4);
+  return Math.max(0, Math.min(100, normalized));
+};
+
 const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [strokes, setStrokes] = useState<Point[][]>(() => readSavedStrokes());
   const [isDrawing, setIsDrawing] = useState(false);
-  const recognitionQuery = useFilteredRecognitionQuery(strokes, filters);
+  const candidatesQuery = useKanjiSearchQuery({ filters }, strokes.length > 0);
 
-  const candidates = useMemo(
-    () => (strokes.length === 0 ? [] : (recognitionQuery.data ?? [])),
-    [recognitionQuery.data, strokes.length],
-  );
-  const isInitialLoading = recognitionQuery.isFetching && strokes.length > 0 && !recognitionQuery.data;
+  const candidates = useMemo<RecognitionCandidate[]>(() => {
+    if (strokes.length === 0 || !candidatesQuery.data) {
+      return [];
+    }
+
+    const recognizer = new StrokeRecognizer();
+    const normalizedStrokes = normalizeStrokes(strokes);
+    const ranked = candidatesQuery.data
+      .filter((kanji) => Boolean(kanji.kvg?.stroke_paths?.length))
+      .map((kanji) => {
+        const score = scoreCandidate(recognizer, normalizedStrokes, kanji);
+        return {
+          kanji,
+          score: toPercentScore(score),
+        };
+      })
+      .sort((first, second) => second.score - first.score);
+
+    return ranked.slice(0, 48);
+  }, [candidatesQuery.data, strokes]);
+
+  const isInitialLoading = candidatesQuery.isFetching && strokes.length > 0 && !candidatesQuery.data;
 
   const getPoint = useCallback((event: PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
@@ -183,8 +266,8 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
       <div>
         {isInitialLoading ? <LoadingState label="Распознаём рисунок" /> : null}
-        {recognitionQuery.isError ? <div className="empty-state">{recognitionQuery.error.message}</div> : null}
-        {!isInitialLoading && !recognitionQuery.isError ? (
+        {candidatesQuery.isError ? <div className="empty-state">{candidatesQuery.error.message}</div> : null}
+        {!isInitialLoading && !candidatesQuery.isError ? (
           <KanjiList
             items={candidates}
             title="Похожие кандзи"

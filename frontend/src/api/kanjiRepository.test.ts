@@ -13,7 +13,7 @@ vi.mock('axios', () => {
   return {
     default: {
       create: () => mockApi as ApiMock,
-      isAxiosError: (error: unknown) => Boolean(error) && typeof error === 'object' && 'isAxiosError' in error && Boolean((error as { isAxiosError?: unknown }).isAxiosError),
+      isAxiosError: (error: unknown) => error !== null && typeof error === 'object' && 'isAxiosError' in error && Boolean((error as { isAxiosError?: unknown }).isAxiosError),
     },
   };
 });

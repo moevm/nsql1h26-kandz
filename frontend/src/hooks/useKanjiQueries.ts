@@ -35,10 +35,11 @@ export const defaultFilters: GlobalFilters = {
   hasAnimation: false,
 };
 
-export const useKanjiSearchQuery = (criteria: SearchCriteria) =>
+export const useKanjiSearchQuery = (criteria: SearchCriteria, enabled = true) =>
   useQuery({
     queryKey: ['kanji-search', criteria],
     queryFn: () => searchKanji(criteria),
+    enabled,
   });
 
 export const useKanjiSearchPageQuery = (criteria: SearchCriteria, page: number, pageSize: number, enabled = true) =>

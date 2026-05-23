@@ -13,6 +13,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.100.6",
     "axios": "^1.15.2",
+    "kanji-recognizer": "^0.2.0",
     "lucide-react": "^0.576.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
