@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, FocusEvent, SetStateAction } from 'react';
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GlobalFilters } from '../types/kanji';
 
@@ -27,6 +27,7 @@ type RangeBound = 'from' | 'to';
 
 const jlptOptions = ['5', '4', '3', '2', '1', 'none'];
 const gradeOptions = ['1', '2', '3', '4', '5', '6', '8', 'none'];
+const collapsedChipLineHeight = 32;
 
 const rangeFilters: RangeFilterConfig[] = [
   { title: 'Число черт', fromKey: 'strokeFrom', toKey: 'strokeTo', min: 1, max: 64, fromPlaceholder: '1', toPlaceholder: '64', chipLabel: 'черт' },
@@ -210,7 +211,42 @@ const RangeFilter = ({
 const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: FilterPanelProps) => {
   const selectedFilters = activeFilters(filters);
   const count = selectedFilters.length;
+  const chipListRef = useRef<HTMLDivElement | null>(null);
   const [activeRange, setActiveRange] = useState<{ key: string; bound: RangeBound } | null>(null);
+  const [chipsExpanded, setChipsExpanded] = useState(false);
+  const [chipsOverflow, setChipsOverflow] = useState(false);
+  const chipSignature = selectedFilters.join('|');
+  const chipsExpandedNow = chipsExpanded && chipsOverflow;
+
+  useLayoutEffect(() => {
+    const element = chipListRef.current;
+
+    if (collapsed || !element || selectedFilters.length === 0) {
+      return undefined;
+    }
+
+    let frame = 0;
+    const measure = () => {
+      frame = window.requestAnimationFrame(() => {
+        setChipsOverflow(element.scrollHeight > collapsedChipLineHeight);
+      });
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(element);
+      return () => {
+        window.cancelAnimationFrame(frame);
+        observer.disconnect();
+      };
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [chipSignature, collapsed, selectedFilters.length]);
 
   const update = <Key extends keyof GlobalFilters>(key: Key, value: GlobalFilters[Key]) => {
     onChange((current) => ({ ...current, [key]: value }));
@@ -251,18 +287,77 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
             <span>{count > 0 ? `${count} активно` : 'без ограничений'}</span>
           </div>
 
-          {selectedFilters.length > 0 ? (
-            <div className="active-filter-row">
-              <div className="active-filter-list" aria-label="Выбранные фильтры">
-                {selectedFilters.map((filter) => (
-                  <span key={filter}>{filter}</span>
-                ))}
-              </div>
-              <button className="icon-button compact-icon" type="button" onClick={onReset} aria-label="Сбросить фильтры" title="Сбросить фильтры">
-                <RotateCcw size={16} />
-              </button>
-            </div>
-          ) : null}
+          <div className="active-filter-slot">
+            <AnimatePresence initial={false}>
+              {selectedFilters.length > 0 ? (
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  className={[
+                    'active-filter-row',
+                    chipsExpandedNow ? 'expanded' : '',
+                    chipsOverflow ? 'overflowing' : '',
+                  ].filter(Boolean).join(' ')}
+                  exit={{ opacity: 0, y: -4 }}
+                  initial={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.14, ease: 'easeOut' }}
+                >
+                  <div className="active-filter-list" ref={chipListRef} aria-label="Выбранные фильтры">
+                    {selectedFilters.map((filter) => (
+                      <span key={filter}>{filter}</span>
+                    ))}
+                  </div>
+                  <button
+                    className="icon-button compact-icon"
+                    type="button"
+                    onClick={() => {
+                      setChipsExpanded(false);
+                      onReset();
+                    }}
+                    aria-label="Сбросить фильтры"
+                    title="Сбросить фильтры"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                  {chipsOverflow ? (
+                    <motion.button
+                      className={chipsExpandedNow ? 'chip-expand-button expanded' : 'chip-expand-button'}
+                      type="button"
+                      onClick={() => setChipsExpanded((value) => !value)}
+                      aria-expanded={chipsExpandedNow}
+                      aria-label={chipsExpandedNow ? 'Свернуть выбранные фильтры' : 'Показать все выбранные фильтры'}
+                      animate={chipsExpandedNow ? { y: [0, 7, 7] } : { y: 0 }}
+                      transition={
+                        chipsExpandedNow
+                          ? { duration: 0.26, ease: [0.25, 0, 0.95, 0.55], times: [0, 0.92, 1] }
+                          : { duration: 0.14, ease: 'easeOut' }
+                      }
+                    >
+                      <motion.span
+                        animate={chipsExpandedNow ? { rotate: 180, y: 7 } : { rotate: 0, y: 0 }}
+                        transition={
+                          chipsExpandedNow
+                            ? { delay: 0.28, duration: 0.12, ease: 'easeOut' }
+                            : { duration: 0.12, ease: 'easeOut' }
+                        }
+                      >
+                        <ChevronDown size={36} strokeWidth={1.55} style={{ transform: 'scaleX(1.85)' }} />
+                      </motion.span>
+                    </motion.button>
+                  ) : null}
+                </motion.div>
+              ) : (
+                <motion.p
+                  animate={{ opacity: 1, y: 0 }}
+                  className="active-filter-placeholder"
+                  exit={{ opacity: 0, y: -4 }}
+                  initial={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.14, ease: 'easeOut' }}
+                >
+                  здесь будут появляться фильтры...
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
 
           {rangeFilters.map((config) => (
             <RangeFilter
