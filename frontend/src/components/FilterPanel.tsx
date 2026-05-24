@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, Dispatch, FocusEvent, SetStateAction } from 'react';
+import type { CSSProperties, Dispatch, FocusEvent, PointerEvent, SetStateAction } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GlobalFilters } from '../types/kanji';
@@ -79,6 +79,8 @@ const RangeFilter = ({
   update: <Key extends keyof GlobalFilters>(key: Key, value: GlobalFilters[Key]) => void;
 }) => {
   const sectionRef = useRef<HTMLElement | null>(null);
+  const fromInputRef = useRef<HTMLInputElement | null>(null);
+  const toInputRef = useRef<HTMLInputElement | null>(null);
   const pointerInsideRef = useRef(false);
   const rawFrom = filters[config.fromKey];
   const rawTo = filters[config.toKey];
@@ -118,6 +120,23 @@ const RangeFilter = ({
     }
   };
 
+  const focusBound = (bound: RangeBound) => {
+    window.requestAnimationFrame(() => {
+      const input = bound === 'from' ? fromInputRef.current : toInputRef.current;
+      input?.focus({ preventScroll: true });
+    });
+  };
+
+  const handleBoundPointerDown = (event: PointerEvent<HTMLLabelElement>, bound: RangeBound) => {
+    onActivate(bound);
+
+    if (event.target !== (bound === 'from' ? fromInputRef.current : toInputRef.current)) {
+      event.preventDefault();
+    }
+
+    focusBound(bound);
+  };
+
   return (
     <section
       className="filter-section range-filter-section"
@@ -134,27 +153,35 @@ const RangeFilter = ({
       <div className="filter-field-row">
         <label
           className={activeBound === 'from' ? 'range-bound-field active' : 'range-bound-field'}
-          onPointerDown={() => onActivate('from')}
+          onPointerDown={(event) => handleBoundPointerDown(event, 'from')}
         >
           <span>От</span>
           <input
+            ref={fromInputRef}
             inputMode="numeric"
             value={rawFrom}
             onChange={(event) => updateBound('from', event.target.value)}
-            onFocus={() => onActivate('from')}
+            onFocus={() => {
+              onActivate('from');
+              focusBound('from');
+            }}
             placeholder={config.fromPlaceholder}
           />
         </label>
         <label
           className={activeBound === 'to' ? 'range-bound-field active' : 'range-bound-field'}
-          onPointerDown={() => onActivate('to')}
+          onPointerDown={(event) => handleBoundPointerDown(event, 'to')}
         >
           <span>До</span>
           <input
+            ref={toInputRef}
             inputMode="numeric"
             value={rawTo}
             onChange={(event) => updateBound('to', event.target.value)}
-            onFocus={() => onActivate('to')}
+            onFocus={() => {
+              onActivate('to');
+              focusBound('to');
+            }}
             placeholder={config.toPlaceholder}
           />
         </label>
