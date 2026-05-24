@@ -311,7 +311,7 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
         <div className="filter-panel-body">
           <div className="filter-summary">
             <h2>Ограничения поиска</h2>
-            <span>{count > 0 ? `${count} активно` : 'без ограничений'}</span>
+            {count > 0 ? <span>{count} активно</span> : null}
           </div>
 
           <div className="active-filter-slot">
