@@ -12,12 +12,20 @@ router = APIRouter(prefix="/api", tags=["import_export"])
 
 
 @router.get("/database")
-def read_database(request: Request) -> dict[str, Any]:
+def read_database(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    require_admin_token(get_db(request), request.app.state.settings, authorization)
     return import_export_service.export_database(get_db(request))
 
 
 @router.get("/export")
-def export_database(request: Request) -> JSONResponse:
+def export_database(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> JSONResponse:
+    require_admin_token(get_db(request), request.app.state.settings, authorization)
     return JSONResponse(
         import_export_service.export_database(get_db(request)),
         headers={"Content-Disposition": f'attachment; filename="{import_export_service.export_filename()}"'},

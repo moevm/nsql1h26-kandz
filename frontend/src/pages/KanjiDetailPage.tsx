@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
 import { ArrowLeft, Pencil, Play, Save, X } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import type { AppOutletContext } from '../components/AppShell';
 import LoadingState from '../components/LoadingState';
 import { useKanjiDetailQuery, useUpdateKanjiMutation } from '../hooks/useKanjiQueries';
 import type { KanjiDocument } from '../types/kanji';
@@ -94,12 +95,15 @@ const StrokeOrderDialog = ({
 
 const KanjiEditDialog = ({
   kanji,
+  adminToken,
   onClose,
 }: {
   kanji: KanjiDocument;
+  adminToken: string;
   onClose: () => void;
 }) => {
   const updateMutation = useUpdateKanjiMutation();
+  const [localError, setLocalError] = useState('');
   const [draft, setDraft] = useState({
     meanings: kanji.meanings.join(', '),
     on: kanji.readings.on.join(', '),
@@ -113,6 +117,12 @@ const KanjiEditDialog = ({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    setLocalError('');
+
+    if (!adminToken) {
+      setLocalError('Для редактирования нужен вход администратора.');
+      return;
+    }
 
     const updated: KanjiDocument = {
       ...kanji,
@@ -128,7 +138,7 @@ const KanjiEditDialog = ({
       radicals: splitValues(draft.radicals),
     };
 
-    await updateMutation.mutateAsync({ literal: kanji.literal, kanji: updated });
+    await updateMutation.mutateAsync({ literal: kanji.literal, kanji: updated, token: adminToken });
     onClose();
   };
 
@@ -183,6 +193,7 @@ const KanjiEditDialog = ({
             <input value={draft.nanori} onChange={(event) => setDraft({ ...draft, nanori: event.target.value })} />
           </label>
 
+          {localError ? <p className="error-text">{localError}</p> : null}
           {updateMutation.error ? <p className="error-text">{updateMutation.error.message}</p> : null}
           <button className="filled-button" type="submit" disabled={updateMutation.isPending}>
             <Save size={18} />
@@ -197,6 +208,7 @@ const KanjiEditDialog = ({
 const KanjiDetailPage = () => {
   const { literal } = useParams();
   const navigate = useNavigate();
+  const { adminToken } = useOutletContext<AppOutletContext>();
   const decodedLiteral = literal ? decodeURIComponent(literal) : '';
   const query = useKanjiDetailQuery(decodedLiteral);
   const [strokeOpen, setStrokeOpen] = useState(false);
@@ -251,7 +263,13 @@ const KanjiDetailPage = () => {
             <span>{kanji.jlpt ? `JLPT N${kanji.jlpt}` : 'без JLPT'}</span>
           </div>
           <div className="detail-actions">
-            <button className="tonal-button" type="button" onClick={() => setEditOpen(true)}>
+            <button
+              className="tonal-button"
+              type="button"
+              onClick={() => setEditOpen(true)}
+              disabled={!adminToken}
+              title={!adminToken ? 'Для редактирования нужен вход администратора' : undefined}
+            >
               <Pencil size={18} />
               Редактировать
             </button>
@@ -316,7 +334,7 @@ const KanjiDetailPage = () => {
       </section>
 
       <StrokeOrderDialog kanji={kanji} open={strokeOpen} onClose={() => setStrokeOpen(false)} />
-      {editOpen ? <KanjiEditDialog kanji={kanji} onClose={() => setEditOpen(false)} /> : null}
+      {editOpen ? <KanjiEditDialog kanji={kanji} adminToken={adminToken} onClose={() => setEditOpen(false)} /> : null}
     </div>
   );
 };

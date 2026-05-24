@@ -22,7 +22,7 @@ const emptyForm = {
 
 const DataPage = () => {
   const navigate = useNavigate();
-  const { filters } = useOutletContext<AppOutletContext>();
+  const { filters, adminToken, adminName, setAdminSession, clearAdminSession } = useOutletContext<AppOutletContext>();
   const addMutation = useAddKanjiMutation();
   const loginMutation = useAdminLoginMutation();
   const exportMutation = useExportMutation();
@@ -36,8 +36,6 @@ const DataPage = () => {
   const [toast, setToast] = useState('');
   const [adminUsername, setAdminUsername] = useState('admin');
   const [adminPassword, setAdminPassword] = useState('');
-  const [adminToken, setAdminToken] = useState('');
-  const [adminName, setAdminName] = useState('');
   const [lanternSignal, setLanternSignal] = useState(0);
   const pageSize = 8;
   const searchCriteria = useMemo(() => ({ filters }), [filters]);
@@ -83,7 +81,13 @@ const DataPage = () => {
 
   const handleExport = async () => {
     try {
-      await exportMutation.mutateAsync();
+      if (!adminToken) {
+        setFormError('Для экспорта нужен вход администратора.');
+        nudgeLantern();
+        return;
+      }
+
+      await exportMutation.mutateAsync(adminToken);
       setToast('Экспорт JSON начат.');
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Не удалось экспортировать данные.');
@@ -100,8 +104,7 @@ const DataPage = () => {
 
     try {
       const session = await loginMutation.mutateAsync({ username: adminUsername, password: adminPassword });
-      setAdminToken(session.access_token);
-      setAdminName(session.username);
+      setAdminSession(session.username, session.access_token);
       setAdminPassword('');
     } catch {
       nudgeLantern();
@@ -245,8 +248,7 @@ const DataPage = () => {
                 className="text-button compact"
                 type="button"
                 onClick={() => {
-                  setAdminToken('');
-                  setAdminName('');
+                  clearAdminSession();
                 }}
               >
                 <LogOut size={16} />

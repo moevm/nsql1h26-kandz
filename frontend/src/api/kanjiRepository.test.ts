@@ -76,4 +76,17 @@ describe('kanjiRepository API layer', () => {
     expect(form instanceof FormData).toBe(true);
     expect(opts.headers.Authorization).toBe('Bearer token123');
   });
+
+  it('updateKanji sends Authorization header', async () => {
+    const mockPut = vi.fn().mockResolvedValue({ data: { literal: 'A' } });
+    setApiMock({ get: vi.fn(), post: vi.fn(), put: mockPut });
+
+    await repo.updateKanji('A', { literal: 'A' } as Parameters<typeof repo.updateKanji>[1], 'token123');
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/kanji/A',
+      { literal: 'A' },
+      { headers: { Authorization: 'Bearer token123' } },
+    );
+  });
 });

@@ -5,7 +5,12 @@ import json
 from app.service.auth_service import create_admin_token
 
 
-def test_export_returns_snapshot(client, db):
+def test_export_requires_authorization(client):
+    r = client.get("/api/export")
+    assert r.status_code == 401
+
+
+def test_export_returns_snapshot(client, app, db):
     db.kanji.delete_many({})
     db.radicals.delete_many({})
     db.users.delete_many({})
@@ -13,8 +18,9 @@ def test_export_returns_snapshot(client, db):
     db.kanji.insert_one({"literal": "日", "_id": "日"})
     db.radicals.insert_one({"_id": "日", "stroke_count": 4, "kanji_list": ["日"]})
     db.users.insert_one({"username": "admin"})
+    token = create_admin_token("admin", app.state.settings)
 
-    r = client.get("/api/export")
+    r = client.get("/api/export", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert "Content-Disposition" in r.headers
     data = r.json()
@@ -64,7 +70,7 @@ def test_import_success_saves_schema(client, app, db):
             {"literal": "Z", "_id": "Z", "meanings": [], "radicals": [], "readings": {"on": [], "kun": []}}
         ],
         "radicals": [{"_id": "r", "stroke_count": 1, "kanji_list": ["Z"]}],
-        "users": [{"username": "admin"}],
+        "users": [{"username": "admin", "password": "admin123"}],
     }
 
     payload = json.dumps(database)
@@ -84,3 +90,33 @@ def test_import_success_saves_schema(client, app, db):
     assert db.radicals.count_documents({}) == 1
     meta = db.meta.find_one({"_id": "database"})
     assert meta is not None and meta.get("updated_at") == database["updated_at"]
+
+
+def test_import_preserves_existing_users_when_payload_has_no_users(client, app, db):
+    db.kanji.delete_many({})
+    db.radicals.delete_many({})
+    db.users.delete_many({})
+
+    db.users.insert_one({"username": "admin", "password": "admin123"})
+    token = create_admin_token("admin", app.state.settings)
+
+    database = {
+        "updated_at": "2020-01-01T00:00:00Z",
+        "kanji": [
+            {"literal": "Y", "_id": "Y", "meanings": [], "radicals": [], "readings": {"on": [], "kun": []}}
+        ],
+        "radicals": [],
+        "users": [],
+    }
+
+    r = client.post(
+        "/api/import",
+        files={"file": ("db.json", json.dumps(database), "application/json")},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert r.status_code == 200
+    assert db.users.find_one({"username": "admin"}) is not None
+
+    login_response = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    assert login_response.status_code == 200

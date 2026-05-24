@@ -91,7 +91,7 @@ export const useChartQuery = (criteria: SearchCriteria, xAxis: ChartXAxis, yAxis
 
 export const useExportMutation = () =>
   useMutation({
-    mutationFn: exportDatabase,
+    mutationFn: (token: string) => exportDatabase(token),
   });
 
 export const useImportMutation = () => {
@@ -127,8 +127,8 @@ export const useUpdateKanjiMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ literal, kanji }: { literal: string; kanji: KanjiDocument }) =>
-      updateKanji(literal, kanji),
+    mutationFn: ({ literal, kanji, token }: { literal: string; kanji: KanjiDocument; token: string }) =>
+      updateKanji(literal, kanji, token),
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['kanji-detail', variables.literal] });
       void queryClient.invalidateQueries({ queryKey: ['kanji-search'] });
