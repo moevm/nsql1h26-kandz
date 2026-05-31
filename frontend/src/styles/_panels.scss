@@ -1,0 +1,88 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.control-panel,
+.results-panel,
+.draw-panel,
+.info-section {
+  @include panel;
+}
+
+.results-panel {
+  transition: opacity 150ms ease;
+
+  &.updating {
+    opacity: 0.68;
+  }
+}
+
+.control-panel,
+.draw-panel,
+.info-section {
+  min-width: 0;
+  padding: 16px;
+}
+
+.control-panel,
+.form-grid,
+.add-form {
+  display: grid;
+  gap: 16px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: 0 11px;
+  background: $surface;
+
+  input {
+    min-height: 0;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}
+
+.section-heading,
+.draw-toolbar,
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.section-heading {
+  min-height: 28px;
+  margin-bottom: 12px;
+
+  h2,
+  span {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 17px;
+    line-height: 1.2;
+  }
+
+  span {
+    min-width: 26px;
+    border-radius: 999px;
+    background: $surface-muted;
+    color: $muted;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 750;
+    text-align: center;
+  }
+}
+
+.control-panel > .section-heading {
+  margin-bottom: 0;
+}

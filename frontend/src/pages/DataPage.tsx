@@ -8,6 +8,7 @@ import ImportDialog from '../components/ImportDialog';
 import LoadingState from '../components/LoadingState';
 import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiSearchPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
 import type { KanjiDocument, RadicalDocument } from '../types/kanji';
+import './DataPage.scss';
 
 const emptyForm = {
   literal: '',

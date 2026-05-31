@@ -5,6 +5,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { defaultFilters } from '../hooks/useKanjiQueries';
 import type { GlobalFilters } from '../types/kanji';
 import FilterPanel from './FilterPanel';
+import './AppShell.scss';
 
 export interface AppOutletContext {
   filters: GlobalFilters;

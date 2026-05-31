@@ -6,6 +6,7 @@ import type { AppOutletContext } from '../components/AppShell';
 import LoadingState from '../components/LoadingState';
 import { useKanjiDetailQuery, useUpdateKanjiMutation } from '../hooks/useKanjiQueries';
 import type { KanjiDocument } from '../types/kanji';
+import './KanjiDetailPage.scss';
 
 const splitValues = (value: string) =>
   value

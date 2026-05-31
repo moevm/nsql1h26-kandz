@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import type { KanjiDocument } from '../types/kanji';
+import './KanjiList.scss';
 
 interface KanjiListItem {
   kanji: KanjiDocument;

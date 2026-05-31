@@ -3,6 +3,7 @@ import type { CSSProperties, Dispatch, FocusEvent, PointerEvent, SetStateAction 
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GlobalFilters } from '../types/kanji';
+import './FilterPanel.scss';
 
 interface FilterPanelProps {
   collapsed: boolean;

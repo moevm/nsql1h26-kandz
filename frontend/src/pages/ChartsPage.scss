@@ -1,0 +1,82 @@
+﻿@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.chart-page {
+  display: grid;
+  gap: 16px;
+}
+
+.chart-card {
+  @include panel;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.chart-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  color: $muted;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.chart-visual {
+  min-height: 316px;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $surface;
+  padding: 12px 10px 4px;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.chart-add-button {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: $text;
+
+  span {
+    height: 1px;
+    background: $border-strong;
+  }
+
+  svg {
+    border: 1px solid $border;
+    border-radius: 50%;
+    background: $surface;
+  }
+
+  &:hover span {
+    background: $text;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
+@media (max-width: 680px) {
+  .chart-sentence {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+

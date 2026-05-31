@@ -8,6 +8,7 @@ import LoadingState from '../components/LoadingState';
 import type { AppOutletContext } from '../components/AppShell';
 import { useKanjiSearchPageQuery, useRadicalGroupsQuery } from '../hooks/useKanjiQueries';
 import type { RadicalGrouping, SearchMode, SortOrder } from '../types/kanji';
+import './SearchPage.scss';
 
 const modeLabels: Record<SearchMode, string> = {
   canvas: 'По рисунку',

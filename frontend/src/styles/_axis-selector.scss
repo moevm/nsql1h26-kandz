@@ -1,0 +1,66 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.axis-selector {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.axis-link {
+  border: 0;
+  border-bottom: 1px solid $text;
+  border-radius: 0;
+  background: transparent;
+  color: $text;
+  padding: 0 0 2px;
+  font-weight: 800;
+
+  &:hover {
+    color: $muted;
+    border-bottom-color: $muted;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
+.axis-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 210px;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $surface;
+  padding: 5px;
+
+  button {
+    min-height: 34px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: $text;
+    padding: 0 9px;
+    text-align: left;
+
+    &:hover,
+    &.selected {
+      background: $surface-muted;
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+}
+
+@media (max-width: 680px) {
+  .axis-menu {
+    min-width: min(230px, calc(100vw - 48px));
+  }
+}

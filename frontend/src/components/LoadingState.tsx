@@ -1,4 +1,5 @@
 import { LineWave } from 'react-loader-spinner';
+import './LoadingState.scss';
 
 interface LoadingStateProps {
   label?: string;

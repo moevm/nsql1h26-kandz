@@ -6,6 +6,7 @@ import { useKanjiSearchQuery } from '../hooks/useKanjiQueries';
 import type { GlobalFilters, KanjiDocument, Point, RecognitionCandidate } from '../types/kanji';
 import KanjiList from './KanjiList';
 import LoadingState from './LoadingState';
+import './CanvasSearch.scss';
 
 interface CanvasSearchProps {
   filters: GlobalFilters;
