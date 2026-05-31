@@ -961,6 +961,7 @@ select {
   height: 128px;
   pointer-events: none;
   transform-origin: 50% -18px;
+  will-change: transform;
 }
 
 .data-lantern-cord,
@@ -1039,13 +1040,15 @@ select {
 .data-lantern-glow {
   top: 38px;
   left: 50%;
+  margin-left: -21px;
   width: 42px;
   height: 44px;
   border-radius: 50%;
   background: rgba(255, 176, 63, 0.58);
   filter: blur(12px);
   opacity: 0.46;
-  transform: translateX(-50%);
+  transform-origin: center;
+  will-change: opacity, transform;
 }
 
 .heading-action-placeholder {
