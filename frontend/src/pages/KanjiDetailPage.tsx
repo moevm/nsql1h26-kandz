@@ -68,7 +68,7 @@ const StrokeOrderDialog = ({
           <div className="empty-state">SVG-данные для этого иероглифа отсутствуют.</div>
         ) : (
           <button className="stroke-player" type="button" onClick={() => setReplayKey((value) => value + 1)}>
-            <svg key={replayKey} viewBox="0 0 100 100" aria-label={`Анимация написания ${kanji.literal}`}>
+            <svg key={replayKey} viewBox="0 0 109 109" aria-label={`Анимация написания ${kanji.literal}`}>
               {paths.map((path, index) => (
                 <path
                   d={path}
