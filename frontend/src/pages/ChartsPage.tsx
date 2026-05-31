@@ -17,6 +17,7 @@ import LoadingState from '../components/LoadingState';
 import type { AppOutletContext } from '../components/AppShell';
 import { useChartQuery } from '../hooks/useKanjiQueries';
 import type { ChartBucket, ChartXAxis, ChartYAxis } from '../types/kanji';
+import './ChartsPage.scss';
 
 interface ChartConfig {
   id: string;

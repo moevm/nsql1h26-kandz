@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Download, FileJson, LogIn, LogOut, Plus } from 'lucide-react';
-import { motion, useAnimationControls } from 'motion/react';
+import { motion, useAnimationControls, useReducedMotion } from 'motion/react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppOutletContext } from '../components/AppShell';
 import ImportDialog from '../components/ImportDialog';
 import LoadingState from '../components/LoadingState';
 import { useAddKanjiMutation, useAdminLoginMutation, useExportMutation, useKanjiSearchPageQuery, useRadicalsQuery } from '../hooks/useKanjiQueries';
 import type { KanjiDocument, RadicalDocument } from '../types/kanji';
+import './DataPage.scss';
 
 const emptyForm = {
   literal: '',
@@ -29,6 +30,7 @@ const DataPage = () => {
   const radicalsQuery = useRadicalsQuery();
   const lanternControls = useAnimationControls();
   const lanternGlowControls = useAnimationControls();
+  const shouldReduceMotion = useReducedMotion();
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [pageState, setPageState] = useState({ key: '', page: 1 });
@@ -57,27 +59,36 @@ const DataPage = () => {
     lanternControls.set({ rotate: 0, x: 0, y: 0 });
     lanternGlowControls.set({ opacity: 0.46, scale: 1 });
 
+    if (shouldReduceMotion) {
+      void lanternGlowControls.start({
+        opacity: [0.46, 0.7, 0.46],
+        scale: [1, 1.04, 1],
+        transition: { duration: 0.42, ease: 'easeOut' },
+      });
+      return;
+    }
+
     void lanternControls.start({
-      rotate: [0, -8, 5.8, -3.2, 1.7, -0.6, 0],
-      x: [0, -2.2, 1.4, -0.8, 0.4, -0.1, 0],
-      y: [0, 1.2, -0.7, 0.5, -0.2, 0.1, 0],
+      rotate: [0, -4.5, -10.5, 7.4, -4.2, 2.1, -0.9, 0.25, 0],
+      x: [0, -0.8, -2.8, 2, -1.1, 0.55, -0.22, 0.08, 0],
+      y: [0, 0.45, 0.1, 1.05, 0.35, 0.6, 0.25, 0.12, 0],
       transition: {
-        duration: 1.08,
-        ease: [0.2, 0.86, 0.28, 1],
-        times: [0, 0.13, 0.3, 0.48, 0.66, 0.82, 1],
+        duration: 1.32,
+        ease: [0.22, 0.74, 0.26, 1],
+        times: [0, 0.07, 0.17, 0.34, 0.5, 0.66, 0.8, 0.92, 1],
       },
     });
 
     void lanternGlowControls.start({
-      opacity: [0.46, 0.88, 0.55, 0.82, 0.5, 0.62, 0.46],
-      scale: [1, 1.1, 1.02, 1.08, 1],
+      opacity: [0.46, 0.68, 0.86, 0.56, 0.72, 0.5, 0.46],
+      scale: [1, 1.04, 1.16, 1.04, 1.09, 1.02, 1],
       transition: {
-        duration: 1.08,
+        duration: 1.18,
         ease: 'easeOut',
-        times: [0, 0.16, 0.34, 0.56, 1],
+        times: [0, 0.08, 0.2, 0.42, 0.58, 0.78, 1],
       },
     });
-  }, [lanternControls, lanternGlowControls, lanternSignal]);
+  }, [lanternControls, lanternGlowControls, lanternSignal, shouldReduceMotion]);
 
   const handleExport = async () => {
     try {
@@ -205,9 +216,10 @@ const DataPage = () => {
               if (!adminToken) {
                 setFormError('Для импорта нужен вход администратора.');
                 nudgeLantern();
-              } else {
-                setFormError('');
+                return;
               }
+
+              setFormError('');
               setImportOpen(true);
             }}
             aria-label="Импортировать данные"

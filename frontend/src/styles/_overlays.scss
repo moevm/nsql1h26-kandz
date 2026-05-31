@@ -1,0 +1,29 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba($text, 0.34);
+}
+
+.modal-sheet {
+  @include panel;
+}
+
+.modal-sheet {
+  width: min(520px, calc(100% - 32px));
+  margin: 10vh auto 0;
+  padding: 18px;
+
+  &.wide {
+    width: min(720px, calc(100% - 32px));
+  }
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}

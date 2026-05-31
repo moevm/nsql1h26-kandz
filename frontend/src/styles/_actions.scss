@@ -1,0 +1,99 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.filled-button,
+.tonal-button,
+.text-button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: $radius;
+  padding: 0 14px;
+  font-weight: 650;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
+.filled-button {
+  background: $primary;
+  color: $on-primary;
+
+  &:hover {
+    background: $primary-hover;
+  }
+}
+
+.tonal-button {
+  border-color: $border;
+  background: $surface;
+  color: $text;
+
+  &:hover {
+    background: $surface-hover;
+  }
+}
+
+.text-button {
+  background: transparent;
+  color: $text;
+
+  &:hover {
+    background: $surface-hover;
+  }
+
+  &.compact {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+}
+
+.icon-button {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  background: transparent;
+  color: $text;
+
+  &:hover {
+    background: $surface-hover;
+  }
+
+  &.danger {
+    color: $danger;
+  }
+
+  &.compact-icon {
+    width: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    border-color: $border;
+    border-radius: 50%;
+    background: $surface;
+
+    &:hover {
+      border-color: $text;
+      background: $text;
+      color: $on-primary;
+    }
+  }
+}
+
+.badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: $lantern-accent;
+  color: $on-primary;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+

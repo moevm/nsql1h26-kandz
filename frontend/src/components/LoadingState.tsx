@@ -1,4 +1,5 @@
 import { LineWave } from 'react-loader-spinner';
+import './LoadingState.scss';
 
 interface LoadingStateProps {
   label?: string;
@@ -14,7 +15,7 @@ const LoadingState = ({ label = 'Загрузка данных' }: LoadingStateP
       ariaLabel="line-wave-loading"
       firstLineColor="#0b57d0"
       middleLineColor="#0b57d0"
-      lastLineColor="#c5221f"
+      lastLineColor="#e76f3c"
     />
     <span>{label}</span>
   </div>

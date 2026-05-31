@@ -1,0 +1,65 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.result-list {
+  display: grid;
+  min-height: 86px;
+}
+
+.kanji-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 12px;
+  min-height: 86px;
+  padding: 12px 16px;
+  border-bottom: 1px solid $border;
+
+  &:hover {
+    background: $surface-hover;
+  }
+}
+
+.kanji-symbol {
+  @include japanese-font;
+  font-size: 40px;
+  line-height: 1;
+  text-align: center;
+}
+
+.kanji-row-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+
+  strong,
+  small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: $muted;
+  }
+}
+
+.score-pill {
+  border-radius: 999px;
+  background: $surface-muted;
+  color: $muted;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+@media (max-width: 680px) {
+  .kanji-row {
+    grid-template-columns: 48px minmax(0, 1fr) 18px;
+  }
+
+  .score-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

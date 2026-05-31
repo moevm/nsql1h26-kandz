@@ -1,0 +1,67 @@
+@use "../styles/variables" as *;
+
+.canvas-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 18px;
+  align-items: start;
+  min-width: 0;
+}
+
+.compact-toolbar {
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.draw-toolbar h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.canvas-frame {
+  position: relative;
+  height: 500px;
+  overflow: hidden;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background:
+    linear-gradient($border 1px, transparent 1px),
+    linear-gradient(90deg, $border 1px, transparent 1px),
+    $surface;
+  background-size: 56px 56px;
+}
+
+.drawing-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.canvas-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: $muted;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+@media (max-width: 1040px) {
+  .canvas-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-frame {
+    height: 420px;
+  }
+}
+
+@media (max-width: 680px) {
+  .canvas-frame {
+    height: 340px;
+  }
+}

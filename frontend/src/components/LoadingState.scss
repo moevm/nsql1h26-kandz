@@ -1,0 +1,10 @@
+@use "../styles/variables" as *;
+@use "../styles/mixins" as *;
+
+.loading-state {
+  @include panel;
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  color: $muted;
+}
