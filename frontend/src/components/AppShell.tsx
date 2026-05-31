@@ -27,14 +27,36 @@ const navItems = [
   { to: '/data', label: 'Данные', icon: Database },
 ];
 
+const filtersCollapsedStorageKey = 'kandz.filtersCollapsed';
+
 const AppShell = () => {
   const [filters, setFilters] = useState(defaultFilters);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() => {
+    try {
+      const savedValue = window.localStorage.getItem(filtersCollapsedStorageKey);
+      return savedValue === null ? true : savedValue === 'true';
+    } catch {
+      return true;
+    }
+  });
   const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
   const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
   const [adminSession, setAdminSessionState] = useState({ username: '', token: '' });
 
   const resetFilters = () => setFilters(defaultFilters);
+  const toggleFiltersCollapsed = () => {
+    setFiltersCollapsed((current) => {
+      const nextValue = !current;
+
+      try {
+        window.localStorage.setItem(filtersCollapsedStorageKey, String(nextValue));
+      } catch {
+        // Ignore storage failures: the toggle itself should still work.
+      }
+
+      return nextValue;
+    });
+  };
   const setAdminSession = (username: string, token: string) => {
     setAdminSessionState({ username, token });
   };
@@ -89,7 +111,7 @@ const AppShell = () => {
           filters={filters}
           onChange={setFilters}
           onReset={resetFilters}
-          onToggle={() => setFiltersCollapsed((value) => !value)}
+          onToggle={toggleFiltersCollapsed}
         />
       </div>
 

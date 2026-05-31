@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, FocusEvent, PointerEvent, SetStateAction } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -28,6 +28,36 @@ type RangeBound = 'from' | 'to';
 const jlptOptions = ['5', '4', '3', '2', '1', 'none'];
 const gradeOptions = ['1', '2', '3', '4', '5', '6', '8', 'none'];
 const collapsedChipLineHeight = 32;
+const desktopPanelWidths = { collapsed: 54, open: 352 };
+
+const readPanelWidths = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return desktopPanelWidths;
+  }
+
+  if (window.matchMedia('(max-width: 1040px)').matches) {
+    return {
+      collapsed: 52,
+      open: Math.min(360, Math.max(300, window.innerWidth - 20)),
+    };
+  }
+
+  return desktopPanelWidths;
+};
+
+const usePanelWidths = () => {
+  const [widths, setWidths] = useState(readPanelWidths);
+
+  useEffect(() => {
+    const updateWidths = () => setWidths(readPanelWidths());
+
+    updateWidths();
+    window.addEventListener('resize', updateWidths);
+    return () => window.removeEventListener('resize', updateWidths);
+  }, []);
+
+  return widths;
+};
 
 const rangeFilters: RangeFilterConfig[] = [
   { title: 'Число черт', fromKey: 'strokeFrom', toKey: 'strokeTo', min: 1, max: 64, fromPlaceholder: '1', toPlaceholder: '64', chipLabel: 'черт' },
@@ -137,8 +167,25 @@ const RangeFilter = ({
     focusBound(bound);
   };
 
+  const handleSectionPointerDown = (event: PointerEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement;
+
+    if (target.closest('input, label, button, .range-popover-motion')) {
+      return;
+    }
+
+    const sectionBox = sectionRef.current?.getBoundingClientRect();
+    const nextBound: RangeBound = sectionBox && event.clientX > sectionBox.left + sectionBox.width / 2 ? 'to' : 'from';
+
+    onActivate(nextBound);
+    focusBound(nextBound);
+  };
+
+  const titleId = `filter-${config.fromKey}`;
+
   return (
     <section
+      aria-labelledby={titleId}
       className="filter-section range-filter-section"
       ref={sectionRef}
       onBlurCapture={handleBlur}
@@ -148,8 +195,9 @@ const RangeFilter = ({
           pointerInsideRef.current = false;
         }, 0);
       }}
+      onPointerDown={handleSectionPointerDown}
     >
-      <h3>{config.title}</h3>
+      <h3 id={titleId}>{config.title}</h3>
       <div className="filter-field-row">
         <label
           className={activeBound === 'from' ? 'range-bound-field active' : 'range-bound-field'}
@@ -238,6 +286,7 @@ const RangeFilter = ({
 const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: FilterPanelProps) => {
   const selectedFilters = activeFilters(filters);
   const count = selectedFilters.length;
+  const panelWidths = usePanelWidths();
   const chipListRef = useRef<HTMLDivElement | null>(null);
   const [activeRange, setActiveRange] = useState<{ key: string; bound: RangeBound } | null>(null);
   const [chipsExpanded, setChipsExpanded] = useState(false);
@@ -300,15 +349,42 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
   };
 
   return (
-    <aside className={collapsed ? 'filter-panel collapsed' : 'filter-panel'} aria-label="Фильтры базы">
-      <button className="filter-panel-toggle" type="button" onClick={onToggle} aria-expanded={!collapsed}>
-        {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+    <motion.aside
+      animate={{ width: collapsed ? panelWidths.collapsed : panelWidths.open }}
+      className={collapsed ? 'filter-panel collapsed' : 'filter-panel'}
+      initial={false}
+      transition={{ type: 'spring', stiffness: 280, damping: 34, mass: 0.92 }}
+      aria-label="Фильтры базы"
+    >
+      <button
+        className="filter-panel-toggle"
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Открыть фильтры' : 'Свернуть фильтры'}
+        title={collapsed ? 'Открыть фильтры' : 'Свернуть фильтры'}
+      >
+        {collapsed ? (
+          <>
+            <span className="filter-rail-label" aria-hidden="true">Фильтры</span>
+            <ChevronLeft className="filter-panel-chevron" size={15} />
+          </>
+        ) : (
+          <ChevronRight className="filter-panel-chevron" size={18} />
+        )}
         <span>Фильтры</span>
         {count > 0 ? <span className="badge">{count}</span> : null}
       </button>
 
-      {collapsed ? null : (
-        <div className="filter-panel-body">
+      <AnimatePresence initial={false}>
+        {collapsed ? null : (
+        <motion.div
+          animate={{ opacity: 1, x: 0 }}
+          className="filter-panel-body"
+          exit={{ opacity: 0, x: 10, transition: { duration: 0.1, ease: 'easeOut' } }}
+          initial={{ opacity: 0, x: 10 }}
+          transition={{ duration: 0.16, delay: 0.08, ease: 'easeOut' }}
+        >
           <div className="filter-summary">
             <h2>Ограничения поиска</h2>
             {count > 0 ? <span>{count} активно</span> : null}
@@ -438,9 +514,10 @@ const FilterPanel = ({ collapsed, filters, onChange, onReset, onToggle }: Filter
             <input checked={filters.hasAnimation} type="checkbox" onChange={(event) => update('hasAnimation', event.target.checked)} />
           </label>
 
-        </div>
+        </motion.div>
       )}
-    </aside>
+      </AnimatePresence>
+    </motion.aside>
   );
 };
 
