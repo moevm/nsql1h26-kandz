@@ -1,4 +1,6 @@
 .idea
+.worktrees/
+HELPERS/
 .venv
 .env
 *.log
@@ -15,3 +17,5 @@ frontend/dist/
 
 data/*
 !data/.gitignore
+
+scripts/explore.py
