@@ -74,6 +74,7 @@ export const useRecognitionQuery = (strokes: Point[][]) =>
     queryKey: ['recognition', strokes],
     queryFn: () => recognizeDrawing(strokes),
     enabled: strokes.length > 0,
+    placeholderData: keepPreviousData,
   });
 
 export const useFilteredRecognitionQuery = (strokes: Point[][], filters: GlobalFilters) =>
@@ -81,6 +82,7 @@ export const useFilteredRecognitionQuery = (strokes: Point[][], filters: GlobalF
     queryKey: ['recognition', strokes, filters],
     queryFn: () => recognizeDrawing(strokes, filters),
     enabled: strokes.length > 0,
+    placeholderData: keepPreviousData,
   });
 
 export const useChartQuery = (criteria: SearchCriteria, xAxis: ChartXAxis, yAxis: ChartYAxis) =>
