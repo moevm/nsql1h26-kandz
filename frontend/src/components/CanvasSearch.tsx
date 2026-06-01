@@ -17,6 +17,7 @@ type NativePointerEvent = globalThis.PointerEvent & {
 
 const STORAGE_KEY = 'kanji-lookup-canvas-strokes';
 const MIN_POINT_DISTANCE = 0.7;
+const BASE_BRUSH_WIDTH = 6.8;
 
 const readSavedStrokes = (): Point[][] => {
   try {
@@ -30,6 +31,11 @@ const readSavedStrokes = (): Point[][] => {
 
 const distance = (first: Point, second: Point) =>
   Math.hypot(first.x - second.x, first.y - second.y);
+
+const brushWidth = (start: Point, end: Point) => {
+  const speed = distance(start, end);
+  return Math.max(4.6, Math.min(8.6, BASE_BRUSH_WIDTH + 1.4 - speed * 0.12));
+};
 
 const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -85,8 +91,10 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    context.strokeStyle = '#1d1b20';
-    context.lineWidth = 7;
+    context.strokeStyle = '#171615';
+    context.lineWidth = BASE_BRUSH_WIDTH;
+    context.shadowColor = 'rgba(17, 17, 17, 0.1)';
+    context.shadowBlur = 0.7;
 
     return context;
   }, []);
@@ -105,8 +113,14 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
       context.beginPath();
       context.moveTo(stroke[0].x, stroke[0].y);
-      stroke.slice(1).forEach((point) => context.lineTo(point.x, point.y));
-      context.stroke();
+      stroke.slice(1).forEach((point, index) => {
+        const previous = stroke[index];
+        context.lineWidth = brushWidth(previous, point);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+        context.beginPath();
+        context.moveTo(point.x, point.y);
+      });
     });
   }, [getDrawingContext]);
 
@@ -119,6 +133,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
       }
 
       context.beginPath();
+      context.lineWidth = brushWidth(start, end);
       context.moveTo(start.x, start.y);
       context.lineTo(end.x, end.y);
       context.stroke();

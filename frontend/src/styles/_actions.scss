@@ -67,10 +67,11 @@
   }
 
   &.danger {
-    color: #2f5f86;
+    color: #3f464c;
 
     &:hover {
-      background: rgba(47, 95, 134, 0.1);
+      background: rgba(63, 70, 76, 0.1);
+      color: #181b1f;
     }
   }
 
