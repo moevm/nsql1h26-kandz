@@ -84,7 +84,15 @@ const RadicalGroupingSelector = ({
 
 const SearchPage = () => {
   const params = useParams();
-  const { filters, draftRadicals, setDraftRadicals, appliedRadicals, setAppliedRadicals } =
+  const {
+    filters,
+    draftRadicals,
+    setDraftRadicals,
+    appliedRadicals,
+    setAppliedRadicals,
+    canvasStrokes,
+    setCanvasStrokes,
+  } =
     useOutletContext<AppOutletContext>();
   const mode = asMode(params.mode);
   const [text, setText] = useState('');
@@ -166,7 +174,9 @@ const SearchPage = () => {
         </div>
       </section>
 
-      {mode === 'canvas' ? <CanvasSearch filters={filters} /> : null}
+      {mode === 'canvas' ? (
+        <CanvasSearch filters={filters} strokes={canvasStrokes} onStrokesChange={setCanvasStrokes} />
+      ) : null}
 
       {mode === 'radicals' ? (
         <div className="search-grid radical-search-grid">

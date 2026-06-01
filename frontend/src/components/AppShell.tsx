@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { BarChart3, Database, PencilLine, Puzzle } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { defaultFilters } from '../hooks/useKanjiQueries';
-import type { GlobalFilters } from '../types/kanji';
+import type { GlobalFilters, Point } from '../types/kanji';
 import FilterPanel from './FilterPanel';
 import './AppShell.scss';
 
@@ -15,6 +15,8 @@ export interface AppOutletContext {
   setDraftRadicals: Dispatch<SetStateAction<string[]>>;
   appliedRadicals: string[];
   setAppliedRadicals: Dispatch<SetStateAction<string[]>>;
+  canvasStrokes: Point[][];
+  setCanvasStrokes: Dispatch<SetStateAction<Point[][]>>;
   adminToken: string;
   adminName: string;
   setAdminSession: (username: string, token: string) => void;
@@ -29,6 +31,29 @@ const navItems = [
 ];
 
 const filtersCollapsedStorageKey = 'kandz.filtersCollapsed';
+const canvasStrokesStorageKey = 'kandz.canvasStrokes';
+
+const isPoint = (value: unknown): value is Point => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const point = value as Partial<Point>;
+  return typeof point.x === 'number' && typeof point.y === 'number';
+};
+
+const readCanvasStrokes = (): Point[][] => {
+  try {
+    const savedValue = window.localStorage.getItem(canvasStrokesStorageKey);
+    const parsed = savedValue ? JSON.parse(savedValue) : [];
+
+    return Array.isArray(parsed)
+      ? parsed.filter((stroke): stroke is Point[] => Array.isArray(stroke) && stroke.every(isPoint))
+      : [];
+  } catch {
+    return [];
+  }
+};
 
 const AppShell = () => {
   const [filters, setFilters] = useState(defaultFilters);
@@ -42,7 +67,16 @@ const AppShell = () => {
   });
   const [draftRadicals, setDraftRadicals] = useState<string[]>([]);
   const [appliedRadicals, setAppliedRadicals] = useState<string[]>([]);
+  const [canvasStrokes, setCanvasStrokes] = useState<Point[][]>(() => readCanvasStrokes());
   const [adminSession, setAdminSessionState] = useState({ username: '', token: '' });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(canvasStrokesStorageKey, JSON.stringify(canvasStrokes));
+    } catch {
+      // Drawing should stay usable even if persistent storage is unavailable.
+    }
+  }, [canvasStrokes]);
 
   const resetFilters = () => setFilters(defaultFilters);
   const toggleFiltersCollapsed = () => {
@@ -99,6 +133,8 @@ const AppShell = () => {
               setDraftRadicals,
               appliedRadicals,
               setAppliedRadicals,
+              canvasStrokes,
+              setCanvasStrokes,
               adminToken: adminSession.token,
               adminName: adminSession.username,
               setAdminSession,

@@ -47,7 +47,7 @@ const KanjiList = ({
       <div className="empty-state">{emptyText}</div>
     ) : (
       <div className="result-list">
-        {items.map(({ kanji, score }) => (
+        {items.map(({ kanji }) => (
           <Link to={`/kanji/${encodeURIComponent(kanji.literal)}`} className="kanji-row" key={kanji.literal}>
             <span className="kanji-symbol">{kanji.literal}</span>
             <span className="kanji-row-body">
@@ -55,7 +55,6 @@ const KanjiList = ({
               <small>{formatMeta(kanji)}</small>
               <small>{[...kanji.readings.on, ...kanji.readings.kun].join(' · ')}</small>
             </span>
-            {score ? <span className="score-pill">{Math.round(score)}%</span> : null}
             <ChevronRight size={18} aria-hidden="true" />
           </Link>
         ))}

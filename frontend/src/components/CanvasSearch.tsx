@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { PointerEvent } from 'react';
 import { CornerUpLeft, Eraser, Sparkles } from 'lucide-react';
+import { getStroke } from 'perfect-freehand';
 import { useFilteredRecognitionQuery } from '../hooks/useKanjiQueries';
 import type { GlobalFilters, Point } from '../types/kanji';
 import KanjiList from './KanjiList';
@@ -9,42 +11,87 @@ import './CanvasSearch.scss';
 
 interface CanvasSearchProps {
   filters: GlobalFilters;
+  strokes: Point[][];
+  onStrokesChange: Dispatch<SetStateAction<Point[][]>>;
 }
 
 type NativePointerEvent = globalThis.PointerEvent & {
   getCoalescedEvents?: () => globalThis.PointerEvent[];
 };
 
-const STORAGE_KEY = 'kanji-lookup-canvas-strokes';
-const MIN_POINT_DISTANCE = 0.7;
-const BASE_BRUSH_WIDTH = 6.8;
-
-const readSavedStrokes = (): Point[][] => {
-  try {
-    const saved = window.sessionStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+const MIN_POINT_DISTANCE = 0.45;
+const FREEHAND_OPTIONS = {
+  size: 7.2,
+  thinning: 0.24,
+  smoothing: 0.72,
+  streamline: 0.62,
+  simulatePressure: true,
+  start: { cap: true },
+  end: { cap: true },
 };
 
 const distance = (first: Point, second: Point) =>
   Math.hypot(first.x - second.x, first.y - second.y);
 
-const brushWidth = (start: Point, end: Point) => {
-  const speed = distance(start, end);
-  return Math.max(4.6, Math.min(8.6, BASE_BRUSH_WIDTH + 1.4 - speed * 0.12));
+const collectPointerEvents = (event: NativePointerEvent) => {
+  const coalescedEvents = event.getCoalescedEvents?.() ?? [];
+
+  if (coalescedEvents.length === 0) {
+    return [event];
+  }
+
+  const last = coalescedEvents[coalescedEvents.length - 1];
+  const includesCurrentEvent = last.clientX === event.clientX && last.clientY === event.clientY;
+
+  return includesCurrentEvent ? coalescedEvents : [...coalescedEvents, event];
 };
 
-const CanvasSearch = ({ filters }: CanvasSearchProps) => {
+const drawFreehandStroke = (context: CanvasRenderingContext2D, stroke: Point[]) => {
+  if (!stroke[0]) {
+    return;
+  }
+
+  if (stroke.length === 1) {
+    context.beginPath();
+    context.arc(stroke[0].x, stroke[0].y, FREEHAND_OPTIONS.size / 2, 0, Math.PI * 2);
+    context.fill();
+    return;
+  }
+
+  const outline = getStroke(
+    stroke.map((point) => [point.x, point.y]),
+    FREEHAND_OPTIONS,
+  );
+
+  if (outline.length < 2) {
+    return;
+  }
+
+  context.beginPath();
+  context.moveTo(outline[0][0], outline[0][1]);
+
+  for (let index = 1; index < outline.length - 1; index += 1) {
+    const current = outline[index];
+    const next = outline[index + 1];
+    context.quadraticCurveTo(
+      current[0],
+      current[1],
+      (current[0] + next[0]) / 2,
+      (current[1] + next[1]) / 2,
+    );
+  }
+
+  context.closePath();
+  context.fill();
+};
+
+const CanvasSearch = ({ filters, strokes, onStrokesChange }: CanvasSearchProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const strokesRef = useRef<Point[][]>([]);
   const rafRef = useRef<number | null>(null);
   const drawingRef = useRef(false);
-  const [committedStrokes, setCommittedStrokes] = useState<Point[][]>(() => readSavedStrokes());
   const [isDrawing, setIsDrawing] = useState(false);
-  const candidatesQuery = useFilteredRecognitionQuery(committedStrokes, filters);
+  const candidatesQuery = useFilteredRecognitionQuery(strokes, filters);
 
   const getPoint = useCallback((clientX: number, clientY: number): Point => {
     const canvas = canvasRef.current;
@@ -89,12 +136,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
       context.clearRect(0, 0, canvas.width, canvas.height);
     }
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.strokeStyle = '#171615';
-    context.lineWidth = BASE_BRUSH_WIDTH;
-    context.shadowColor = 'rgba(17, 17, 17, 0.1)';
-    context.shadowBlur = 0.7;
+    context.fillStyle = '#171615';
 
     return context;
   }, []);
@@ -107,43 +149,13 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     }
 
     strokesRef.current.forEach((stroke) => {
-      if (!stroke[0]) {
-        return;
-      }
-
-      context.beginPath();
-      context.moveTo(stroke[0].x, stroke[0].y);
-      stroke.slice(1).forEach((point, index) => {
-        const previous = stroke[index];
-        context.lineWidth = brushWidth(previous, point);
-        context.lineTo(point.x, point.y);
-        context.stroke();
-        context.beginPath();
-        context.moveTo(point.x, point.y);
-      });
+      drawFreehandStroke(context, stroke);
     });
   }, [getDrawingContext]);
 
-  const drawSegment = useCallback(
-    (start: Point, end: Point) => {
-      const context = getDrawingContext();
-
-      if (!context) {
-        return;
-      }
-
-      context.beginPath();
-      context.lineWidth = brushWidth(start, end);
-      context.moveTo(start.x, start.y);
-      context.lineTo(end.x, end.y);
-      context.stroke();
-    },
-    [getDrawingContext],
-  );
-
   const scheduleRedraw = useCallback(() => {
     if (rafRef.current !== null) {
-      return;
+      window.cancelAnimationFrame(rafRef.current);
     }
 
     rafRef.current = window.requestAnimationFrame(() => {
@@ -152,20 +164,22 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     });
   }, [redraw]);
 
-  const commitStrokes = useCallback(
-    (nextStrokes: Point[][]) => {
-      strokesRef.current = nextStrokes;
-      setCommittedStrokes(nextStrokes);
-      scheduleRedraw();
+  const attachCanvas = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      canvasRef.current = canvas;
+
+      if (canvas) {
+        scheduleRedraw();
+      }
     },
     [scheduleRedraw],
   );
 
-  useEffect(() => {
-    strokesRef.current = committedStrokes;
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(committedStrokes));
+  useLayoutEffect(() => {
+    strokesRef.current = strokes;
+    redraw();
     scheduleRedraw();
-  }, [committedStrokes, scheduleRedraw]);
+  }, [redraw, scheduleRedraw, strokes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -192,7 +206,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     drawingRef.current = true;
     setIsDrawing(true);
     const point = getPoint(event.clientX, event.clientY);
-    strokesRef.current = [...committedStrokes, [point]];
+    strokesRef.current = [...strokes, [point]];
     redraw();
   };
 
@@ -203,7 +217,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
     event.preventDefault();
     const nativeEvent = event.nativeEvent as NativePointerEvent;
-    const pointerEvents = nativeEvent.getCoalescedEvents?.() ?? [nativeEvent];
+    const pointerEvents = collectPointerEvents(nativeEvent);
     const next = [...strokesRef.current];
     const currentStroke = [...(next[next.length - 1] ?? [])];
 
@@ -213,15 +227,12 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
       if (!previous || distance(previous, point) >= MIN_POINT_DISTANCE) {
         currentStroke.push(point);
-        if (previous) {
-          drawSegment(previous, point);
-        }
       }
     });
 
     next[next.length - 1] = currentStroke;
     strokesRef.current = next;
-    scheduleRedraw();
+    redraw();
   };
 
   const finishStroke = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -237,30 +248,36 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
     drawingRef.current = false;
     setIsDrawing(false);
-    commitStrokes(strokesRef.current.filter((stroke) => stroke.length > 1));
+    onStrokesChange(strokesRef.current.filter((stroke) => stroke.length > 1));
   };
 
   const undoStroke = () => {
-    commitStrokes(committedStrokes.slice(0, -1));
+    strokesRef.current = strokes.slice(0, -1);
+    onStrokesChange(strokesRef.current);
+    redraw();
   };
 
   const clearCanvas = () => {
-    commitStrokes([]);
+    strokesRef.current = [];
+    onStrokesChange([]);
+    redraw();
   };
 
-  const hasVisibleStrokes = committedStrokes.length > 0 || isDrawing;
-  const candidates = candidatesQuery.data ?? [];
-  const isInitialLoading = candidatesQuery.isFetching && committedStrokes.length > 0 && !candidatesQuery.data;
+  const hasCommittedStrokes = strokes.length > 0;
+  const hasVisibleStrokes = hasCommittedStrokes || isDrawing;
+  const candidates = hasCommittedStrokes ? candidatesQuery.data ?? [] : [];
+  const isInitialLoading = candidatesQuery.isFetching && hasCommittedStrokes && !candidatesQuery.data;
+  const isRecognitionError = hasCommittedStrokes && candidatesQuery.isError;
 
   return (
     <div className="canvas-layout">
       <section className="draw-panel" aria-label="Холст для рукописного ввода">
         <div className="draw-toolbar compact-toolbar">
           <div className="toolbar-actions">
-            <button className="icon-button" type="button" onClick={undoStroke} disabled={committedStrokes.length === 0} aria-label="Отменить последнюю черту">
+            <button className="icon-button" type="button" onClick={undoStroke} disabled={strokes.length === 0} aria-label="Отменить последнюю черту">
               <CornerUpLeft size={19} />
             </button>
-            <button className="icon-button danger" type="button" onClick={clearCanvas} disabled={committedStrokes.length === 0} aria-label="Очистить холст">
+            <button className="icon-button danger" type="button" onClick={clearCanvas} disabled={strokes.length === 0} aria-label="Очистить холст">
               <Eraser size={19} />
             </button>
           </div>
@@ -274,7 +291,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
             </div>
           ) : null}
           <canvas
-            ref={canvasRef}
+            ref={attachCanvas}
             className="drawing-canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -287,12 +304,12 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
       <div>
         {isInitialLoading ? <LoadingState label="Распознаём рисунок" /> : null}
-        {candidatesQuery.isError ? <div className="empty-state">{candidatesQuery.error.message}</div> : null}
-        {!isInitialLoading && !candidatesQuery.isError ? (
+        {isRecognitionError ? <div className="empty-state">{candidatesQuery.error.message}</div> : null}
+        {!isInitialLoading && !isRecognitionError ? (
           <KanjiList
             items={candidates}
             title="Похожие кандзи"
-            emptyText={committedStrokes.length === 0 ? 'После первой черты здесь появятся кандидаты.' : 'Нет кандидатов под текущие фильтры.'}
+            emptyText={strokes.length === 0 ? 'После первой черты здесь появятся кандидаты' : 'Нет кандидатов под текущие фильтры.'}
           />
         ) : null}
       </div>
