@@ -396,6 +396,26 @@ def search_kanji(
     return aggregate_kanji(db, query, [{"$limit": max(1, min(limit, 100))}], exact_text)
 
 
+def merge_query(query: dict[str, Any], condition: dict[str, Any]) -> dict[str, Any]:
+    if not query:
+        return condition
+
+    return {"$and": [query, condition]}
+
+
+def kanji_by_literals(
+    db: Database,
+    query: dict[str, Any],
+    literals: list[str],
+) -> list[dict[str, Any]]:
+    unique_literals = list(dict.fromkeys(literals))
+    if not unique_literals:
+        return []
+
+    condition = {"literal": {"$in": unique_literals}}
+    return [serialize_document(item) for item in db.kanji.find(merge_query(query, condition))]
+
+
 def read_kanji_page(db: Database, query: dict[str, Any], page: int, page_size: int) -> dict[str, Any]:
     total = db.kanji.count_documents(query)
     total_pages = max(1, ceil(total / page_size))
@@ -460,7 +480,12 @@ def replace_kanji(db: Database, literal: str, kanji: dict[str, Any]) -> bool:
     return True
 
 
-def recognition_candidates(db: Database, query: dict[str, Any], expected_strokes: int) -> list[dict[str, Any]]:
+def recognition_candidates(
+    db: Database,
+    query: dict[str, Any],
+    expected_strokes: int,
+    limit: int = 24,
+) -> list[dict[str, Any]]:
     pipeline = [
         {"$match": query},
         {
@@ -497,7 +522,7 @@ def recognition_candidates(db: Database, query: dict[str, Any], expected_strokes
             }
         },
         {"$sort": {"score": -1, "_sort_freq": ASCENDING, "literal": ASCENDING}},
-        {"$limit": 6},
+        {"$limit": max(1, min(limit, 48))},
         {
             "$project": {
                 "_safe_strokes": 0,

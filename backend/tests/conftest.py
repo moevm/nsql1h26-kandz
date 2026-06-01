@@ -25,6 +25,7 @@ def settings(tmp_path: Path) -> Settings:
         database_name="kandz_test",
         seed_path=tmp_path / "seed.json",
         admin_token_secret="test-secret",
+        recognition_enabled=False,
     )
 
 

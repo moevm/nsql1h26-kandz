@@ -183,7 +183,11 @@ async def update_kanji(
 
 @router.post("/recognize")
 async def recognize_drawing(request: Request) -> list[dict[str, Any]]:
-    return kanji_service.recognize_drawing(get_db(request), await request.json())
+    return kanji_service.recognize_drawing(
+        get_db(request),
+        await request.json(),
+        recognizer=getattr(request.app.state, "recognizer", None),
+    )
 
 
 @router.get("/stats")

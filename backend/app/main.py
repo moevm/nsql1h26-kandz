@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.data.database import create_client, create_indexes, seed_database
+from app.ml.recognizer import load_kanji_recognizer
 from app.web.auth_router import router as auth_router
 from app.web.health_router import router as health_router
 from app.web.import_export_router import router as import_export_router
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.client = client
     app.state.db = client[settings.database_name]
+    app.state.recognizer = load_kanji_recognizer(settings)
 
     create_indexes(app.state.db)
     seed_database(app.state.db, settings)
