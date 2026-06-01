@@ -54,7 +54,7 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     };
   }, []);
 
-  const getDrawingContext = useCallback(() => {
+  const getDrawingContext = useCallback((clear = false) => {
     const canvas = canvasRef.current;
 
     if (!canvas) {
@@ -75,10 +75,13 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
+      clear = true;
     }
 
     context.setTransform(1, 0, 0, 1, 0, 0);
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    if (clear) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    }
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.lineCap = 'round';
     context.lineJoin = 'round';
@@ -89,14 +92,11 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
   }, []);
 
   const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const context = getDrawingContext();
+    const context = getDrawingContext(true);
 
-    if (!canvas || !context) {
+    if (!context) {
       return;
     }
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
 
     strokesRef.current.forEach((stroke) => {
       if (!stroke[0]) {
