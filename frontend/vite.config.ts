@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(() => {
   const isTest = Boolean(process.env.VITEST) || process.argv.some((arg) => arg.includes('vitest'));
+  const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8080';
   const motionMockPath = fileURLToPath(new URL('./src/test/mocks/motion-react.ts', import.meta.url));
   const alias: AliasOptions = isTest ? { 'motion/react': motionMockPath } : {};
 
@@ -15,7 +16,7 @@ export default defineConfig(() => {
     },
     server: {
       proxy: {
-        '/api': 'http://127.0.0.1:8000',
+        '/api': apiProxyTarget,
       },
     },
     test: {
