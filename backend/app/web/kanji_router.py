@@ -6,6 +6,7 @@ from app.data.database import get_db
 from app.data.kanji_repository import list_radical_groups, list_radicals
 from app.service.auth_service import require_admin_token
 from app.service import kanji_service
+from app.service import recognition_service
 
 
 router = APIRouter(prefix="/api", tags=["kanji"])
@@ -183,7 +184,7 @@ async def update_kanji(
 
 @router.post("/recognize")
 async def recognize_drawing(request: Request) -> list[dict[str, Any]]:
-    return kanji_service.recognize_drawing(
+    return recognition_service.recognize_drawing(
         get_db(request),
         await request.json(),
         recognizer=getattr(request.app.state, "recognizer", None),
