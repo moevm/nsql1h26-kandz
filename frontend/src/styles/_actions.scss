@@ -67,7 +67,11 @@
   }
 
   &.danger {
-    color: $danger;
+    color: #2f5f86;
+
+    &:hover {
+      background: rgba(47, 95, 134, 0.1);
+    }
   }
 
   &.compact-icon {

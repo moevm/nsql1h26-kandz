@@ -54,17 +54,17 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     };
   }, []);
 
-  const redraw = useCallback(() => {
+  const getDrawingContext = useCallback(() => {
     const canvas = canvasRef.current;
 
     if (!canvas) {
-      return;
+      return null;
     }
 
     const context = canvas.getContext('2d');
 
     if (!context) {
-      return;
+      return null;
     }
 
     const bounds = canvas.getBoundingClientRect();
@@ -85,6 +85,19 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     context.strokeStyle = '#1d1b20';
     context.lineWidth = 7;
 
+    return context;
+  }, []);
+
+  const redraw = useCallback(() => {
+    const canvas = canvasRef.current;
+    const context = getDrawingContext();
+
+    if (!canvas || !context) {
+      return;
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
     strokesRef.current.forEach((stroke) => {
       if (!stroke[0]) {
         return;
@@ -95,7 +108,23 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
       stroke.slice(1).forEach((point) => context.lineTo(point.x, point.y));
       context.stroke();
     });
-  }, []);
+  }, [getDrawingContext]);
+
+  const drawSegment = useCallback(
+    (start: Point, end: Point) => {
+      const context = getDrawingContext();
+
+      if (!context) {
+        return;
+      }
+
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.stroke();
+    },
+    [getDrawingContext],
+  );
 
   const scheduleRedraw = useCallback(() => {
     if (rafRef.current !== null) {
@@ -147,8 +176,9 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     setIsDrawing(true);
-    strokesRef.current = [...committedStrokes, [getPoint(event.clientX, event.clientY)]];
-    scheduleRedraw();
+    const point = getPoint(event.clientX, event.clientY);
+    strokesRef.current = [...committedStrokes, [point]];
+    redraw();
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -168,6 +198,9 @@ const CanvasSearch = ({ filters }: CanvasSearchProps) => {
 
       if (!previous || distance(previous, point) >= MIN_POINT_DISTANCE) {
         currentStroke.push(point);
+        if (previous) {
+          drawSegment(previous, point);
+        }
       }
     });
 
