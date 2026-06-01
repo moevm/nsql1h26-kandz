@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, Dispatch, FocusEvent, PointerEvent, SetStateAction } from 'react';
+import type { CSSProperties, Dispatch, FocusEvent, KeyboardEvent, PointerEvent, SetStateAction } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GlobalFilters } from '../types/kanji';
@@ -62,19 +62,32 @@ const usePanelWidths = () => {
 
 const rangeFilters: RangeFilterConfig[] = [
   { title: 'Число черт', fromKey: 'strokeFrom', toKey: 'strokeTo', min: 1, max: 64, fromPlaceholder: '1', toPlaceholder: '64', chipLabel: 'черт' },
-  { title: 'Частотность', fromKey: 'freqFrom', toKey: 'freqTo', min: 1, max: 3000, fromPlaceholder: '1', toPlaceholder: '2500', chipLabel: 'freq' },
-  { title: 'Слова', fromKey: 'wordsFrom', toKey: 'wordsTo', min: 0, max: 40, fromPlaceholder: '2', toPlaceholder: '30', chipLabel: 'слов' },
-  { title: 'Примеры', fromKey: 'examplesFrom', toKey: 'examplesTo', min: 0, max: 12, fromPlaceholder: '1', toPlaceholder: '8', chipLabel: 'примеров' },
-  { title: 'Радикалы в записи', fromKey: 'radicalsFrom', toKey: 'radicalsTo', min: 1, max: 8, fromPlaceholder: '1', toPlaceholder: '5', chipLabel: 'радикалов' },
-  { title: 'Чтения', fromKey: 'readingsFrom', toKey: 'readingsTo', min: 0, max: 12, fromPlaceholder: '1', toPlaceholder: '8', chipLabel: 'чтений' },
+  { title: 'Частотность', fromKey: 'freqFrom', toKey: 'freqTo', min: 1, max: 3000, fromPlaceholder: '1', toPlaceholder: '3000', chipLabel: 'freq' },
+  { title: 'Слова', fromKey: 'wordsFrom', toKey: 'wordsTo', min: 0, max: 40, fromPlaceholder: '0', toPlaceholder: '40', chipLabel: 'слов' },
+  { title: 'Примеры', fromKey: 'examplesFrom', toKey: 'examplesTo', min: 0, max: 12, fromPlaceholder: '0', toPlaceholder: '12', chipLabel: 'примеров' },
+  { title: 'Радикалы в записи', fromKey: 'radicalsFrom', toKey: 'radicalsTo', min: 1, max: 8, fromPlaceholder: '1', toPlaceholder: '8', chipLabel: 'радикалов' },
+  { title: 'Чтения', fromKey: 'readingsFrom', toKey: 'readingsTo', min: 0, max: 12, fromPlaceholder: '0', toPlaceholder: '12', chipLabel: 'чтений' },
 ];
 
 const chipLabel = (value: string, prefix: string) => (value === 'none' ? 'без' : `${prefix}${value}`);
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(value)));
+const isNeutralRangeValue = (value: string, config: RangeFilterConfig, bound: RangeBound) => {
+  if (!value) {
+    return true;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return false;
+  }
+
+  return bound === 'from' ? parsed <= config.min : parsed >= config.max;
+};
 
 const rangeSummary = (filters: GlobalFilters, config: RangeFilterConfig) => {
-  const from = filters[config.fromKey];
-  const to = filters[config.toKey];
+  const from = isNeutralRangeValue(filters[config.fromKey], config, 'from') ? '' : filters[config.fromKey];
+  const to = isNeutralRangeValue(filters[config.toKey], config, 'to') ? '' : filters[config.toKey];
 
   if (!from && !to) {
     return null;
@@ -138,7 +151,8 @@ const RangeFilter = ({
 
     const value = clamp(parsed, config.min, config.max);
     const nextValue = bound === 'from' ? Math.min(value, safeTo) : Math.max(value, safeFrom);
-    update(bound === 'from' ? config.fromKey : config.toKey, String(nextValue) as never);
+    const nextRawValue = isNeutralRangeValue(String(nextValue), config, bound) ? '' : String(nextValue);
+    update(bound === 'from' ? config.fromKey : config.toKey, nextRawValue as never);
   };
 
   const handleBlur = (event: FocusEvent<HTMLElement>) => {
@@ -168,6 +182,17 @@ const RangeFilter = ({
     focusBound(bound);
   };
 
+  const stepBound = (bound: RangeBound, direction: -1 | 1) => {
+    const rawValue = bound === 'from' ? rawFrom : rawTo;
+    const fallbackValue = bound === 'from' ? safeFrom : safeTo;
+    const parsed = rawValue ? Number(rawValue) : fallbackValue;
+    const nextValue = clamp(parsed + direction, config.min, config.max);
+
+    updateBound(bound, String(nextValue));
+    onActivate(bound);
+    focusBound(bound);
+  };
+
   const handleSectionPointerDown = (event: PointerEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
 
@@ -180,6 +205,15 @@ const RangeFilter = ({
 
     onActivate(nextBound);
     focusBound(nextBound);
+  };
+
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>, bound: RangeBound) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
+      return;
+    }
+
+    event.preventDefault();
+    stepBound(bound, event.key === 'ArrowUp' ? 1 : -1);
   };
 
   const titleId = `filter-${config.fromKey}`;
@@ -210,6 +244,7 @@ const RangeFilter = ({
             inputMode="numeric"
             value={rawFrom}
             onChange={(event) => updateBound('from', event.target.value)}
+            onKeyDown={(event) => handleInputKeyDown(event, 'from')}
             onFocus={() => {
               onActivate('from');
               focusBound('from');
@@ -227,6 +262,7 @@ const RangeFilter = ({
             inputMode="numeric"
             value={rawTo}
             onChange={(event) => updateBound('to', event.target.value)}
+            onKeyDown={(event) => handleInputKeyDown(event, 'to')}
             onFocus={() => {
               onActivate('to');
               focusBound('to');

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import FilterPanel from './FilterPanel';
 import { defaultFilters } from '../hooks/useKanjiQueries';
 import type { GlobalFilters } from '../types/kanji';
@@ -7,6 +7,8 @@ import type { GlobalFilters } from '../types/kanji';
 const emptyFilters: GlobalFilters = {
   ...defaultFilters,
 };
+
+afterEach(cleanup);
 
 describe('FilterPanel', () => {
   it('renders collapsed toggle and badge count', () => {
@@ -78,5 +80,30 @@ describe('FilterPanel', () => {
     fireEvent.change(range, { target: { value: '3' } });
 
     // No assertion on onChange here; interaction should not crash.
+  });
+
+  it('keeps neutral range boundaries inactive', () => {
+    const onChange = vi.fn();
+
+    const view = render(
+      <FilterPanel
+        collapsed={false}
+        filters={emptyFilters}
+        onChange={onChange}
+        onReset={vi.fn()}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(view.getAllByPlaceholderText('40').length).toBeGreaterThan(0);
+
+    fireEvent.change(view.getAllByPlaceholderText('1')[0], { target: { value: '1' } });
+    fireEvent.change(view.getByPlaceholderText('64'), { target: { value: '64' } });
+
+    const fromUpdate = onChange.mock.calls[0][0];
+    const toUpdate = onChange.mock.calls[1][0];
+
+    expect(fromUpdate(emptyFilters).strokeFrom).toBe('');
+    expect(toUpdate(emptyFilters).strokeTo).toBe('');
   });
 });
