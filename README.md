@@ -83,6 +83,8 @@ docker compose down -v
 
 Папка `data/` нужна только для пересборки seed из исходных наборов данных. Сырые файлы JMDict, KANJIDIC2, KanjiVG и Tatoeba не коммитятся как обычные Git-файлы из-за размера; ожидаемые имена файлов указаны в начале `scripts/build_seed.py`.
 
+Модель рукописного распознавания хранится в `backend/app/ml/assets`: TFLite-файл, labels и notice/license DaKanji. Backend нормализует штрихи, запускает модель и ограничивает найденные кандидаты текущими фильтрами через MongoDB.
+
 Seed собирается из файлов в `data/` и содержит:
 
 - `kanji` — 10 383 документа из KANJIDIC2;
@@ -117,7 +119,8 @@ Backend разделён на несколько слоёв:
 
 - `app/core` — настройки приложения и переменные окружения;
 - `app/data` — подключение к MongoDB, индексы, seed, репозитории и aggregation pipeline;
-- `app/service` — бизнес-логика, валидация, импорт/экспорт и авторизация импорта;
+- `app/ml` — подготовка рукописных штрихов и загрузка модели распознавания;
+- `app/service` — бизнес-логика, валидация, импорт/экспорт, распознавание и авторизация импорта;
 - `app/web` — HTTP-роутеры FastAPI.
 
 ## Отладочный пользователь
@@ -158,10 +161,12 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm run lint
+npm test -- --run
 npm run build
 ```
 
 ```bash
+docker compose run --rm backend pytest
 docker compose config
 docker compose build --no-cache
 docker compose up
