@@ -13,6 +13,16 @@
   position: relative;
   overflow: visible;
   margin-bottom: 92px;
+
+  input::placeholder {
+    color: rgba($muted, 0.42);
+    font-weight: 500;
+    opacity: 1;
+  }
+
+  input:focus::placeholder {
+    color: rgba($muted, 0.32);
+  }
 }
 
 .data-lantern-anchor {
