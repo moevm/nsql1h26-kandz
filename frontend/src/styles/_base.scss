@@ -1,6 +1,17 @@
 @use "variables" as *;
 @use "mixins" as *;
 
+@font-face {
+  font-family: "KanjiLookup JP";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("Noto Sans JP"),
+    local("Noto Sans CJK JP"),
+    url("/fonts/NotoSansJP-Regular.ttf") format("truetype");
+}
+
 * {
   box-sizing: border-box;
 }
@@ -16,7 +27,7 @@ body {
   overflow-x: hidden;
   background: $background;
   color: $text;
-  font-family: Inter, Roboto, "Segoe UI", system-ui, sans-serif;
+  font-family: Inter, Roboto, "Segoe UI", "KanjiLookup JP", system-ui, sans-serif;
 }
 
 button,

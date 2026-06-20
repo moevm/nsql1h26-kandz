@@ -10,18 +10,17 @@
 }
 
 .radical-search-grid {
-  width: calc(100% + 150px);
-  margin-left: -150px;
-  grid-template-columns: 590px minmax(0, 1fr);
+  width: 100%;
+  grid-template-columns: minmax(280px, 590px) minmax(0, 1fr);
 }
 
 .workspace-layout:not(.filters-collapsed) .radical-search-grid {
   width: 100%;
   margin-left: 0;
-  grid-template-columns: minmax(470px, 0.95fr) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1fr);
 
   .radical-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
   }
 }
 
@@ -75,7 +74,7 @@
 
 .radical-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
   overflow: hidden;
   border: 1px solid $border;
   border-radius: $radius;
@@ -114,7 +113,7 @@
   }
 
   .radical-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
     gap: 0;
   }
 
@@ -284,7 +283,7 @@
 
 @media (max-width: 680px) {
   .radical-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
   }
 }
 
